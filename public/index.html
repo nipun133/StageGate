@@ -768,7 +768,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795159978190"></script>
+  <script src="topics-data.js?v=1795160236168"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2334,26 +2334,6 @@
       } else {
         let html = `
           <div class="space-y-6 pt-1">
-            <div class="p-3 sm:p-4 rounded-xl bg-zinc-900/80 border border-zinc-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-              <div class="flex items-center gap-2.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                <div>
-                  <h2 class="text-xs sm:text-sm font-bold text-white"><span class="text-emerald-400">${data.totalCount}</span> Concepts Saved in Hard Revision</h2>
-                  <p class="text-[11px] text-zinc-400">Download all concept texts into a single backup file to protect against accidental deletion.</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button type="button" onclick="triggerHardRevisionDownload()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  <span>Download Backup (.md)</span>
-                </button>
-                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer" title="Restore highlights from a previously downloaded backup file">
-                  <svg class="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span class="hidden sm:inline">Restore</span>
-                  <input type="file" onchange="restoreHardRevisionFromFile(this.files[0])" accept=".md,.json,.txt" class="hidden" />
-                </label>
-              </div>
-            </div>
         `;
 
         data.topics.forEach(t => {
