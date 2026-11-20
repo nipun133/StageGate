@@ -21,6 +21,28 @@
 - **Constraint Declaration Levels**:
   - **Column-Level (Inline)**: Declared alongside the column definition. `NOT NULL` must always be declared at column level.
   - **Table-Level (Out-of-line)**: Declared after all columns are listed. Required for **composite keys** (multi-column constraints).
+- **Composite Primary Keys (Multi-Column Keys)**:
+  - **Definition**: A primary key formed by combining two or more columns to uniquely identify a row (crucial for many-to-many junction tables like `order_items (order_id, item_id)` or `student_courses (student_id, course_id)`).
+  - **Mandatory Table-Level Syntax**: Composite keys **must** be declared at table level:
+    ```sql
+    CREATE TABLE order_items (
+        order_id NUMBER,
+        item_id  NUMBER,
+        quantity NUMBER,
+        CONSTRAINT pk_order_items PRIMARY KEY (order_id, item_id)
+    );
+    ```
+  - **Exam Trap (Column-Level Syntax Failure)**: Attempting to specify `PRIMARY KEY` inline on multiple columns fails immediately:
+    ```sql
+    order_id NUMBER PRIMARY KEY,
+    item_id  NUMBER PRIMARY KEY
+    ```
+    Raises: `ORA-02260: table can have only one primary key`.
+  - **Duplicate Values Rule**: Individual columns *can repeat freely* (e.g., `order_id = 101` can appear 50 times, `item_id = 1` can appear 100 times). Only the composite pair `(order_id, item_id)` must be unique.
+  - **Nullability**: Oracle automatically enforces `NOT NULL` on **all columns** participating in a composite primary key. None of the columns can contain `NULL`.
+  - **Foreign Key Referencing**: Any child table referencing a composite primary key must also declare a composite foreign key matching the exact column count and compatible datatypes in identical order:
+    `FOREIGN KEY (order_id, item_id) REFERENCES order_items(order_id, item_id)`.
+  - **Limit**: An Oracle composite key can span up to a maximum of **32 columns**.
 - **PRIMARY KEY vs. UNIQUE**:
   | Feature | `PRIMARY KEY` | `UNIQUE` |
   | :--- | :--- | :--- |
@@ -43,9 +65,11 @@
 
 ## 4. FOREIGN KEY & Referential Integrity Rules
 - **Purpose**: Links a column in a child table to a `PRIMARY KEY` or `UNIQUE` key column in a parent table.
-- **Child Insert/Update Rule**:
-  - Value must match an existing parent key or be `NULL`.
-  - Violations raise: `integrity constraint violated - parent key not found`.
+- **Child Insert/Update Rule (The Two Legal States)**:
+  - **State 1 (Match Existing Parent Key)**: If a non-null value is inserted or updated, it must already exist in the referenced parent primary/unique key. Inserting an unlisted value (e.g., adding `dept_id = 40` when only `10, 20, 30` exist in parent) raises:
+    `integrity constraint violated - parent key not found`.
+  - **State 2 (NULL Permitted by Default)**: Foreign key columns allow `NULL` values by default (indicating an unassigned or unlinked state, such as a newly hired employee without a department).
+  - **Mandatory Parent Requirement**: To prohibit `NULL` entries in child records, `NOT NULL` must be explicitly declared on the foreign key column (`REFERENCES dept(dept_id) NOT NULL`). Inserting `NULL` then raises: `cannot insert NULL into...`.
 - **Parent Deletion Behaviors**:
   - **Default (No Action)**: Deletion is blocked if child records exist.
     - Violation raises: `integrity constraint violated - child record found`.

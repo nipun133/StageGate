@@ -19,6 +19,10 @@ module.exports = {
       "output": "Table created.\nNote: Composite keys must be declared at the table level."
     },
     {
+      "sql": "-- Exam Trap: Attempting inline PRIMARY KEY on multiple columns fails\nCREATE TABLE order_items (\n  order_id NUMBER PRIMARY KEY,\n  item_id  NUMBER PRIMARY KEY\n);\n-- Error: table can have only one primary key",
+      "output": "Error: table can have only one primary key (ORA-02260)\nCause: A table can have only one PRIMARY KEY. Multi-column composite keys must be declared at the table level."
+    },
+    {
       "sql": "-- Core Rule: UNIQUE permits multiple rows to contain NULL without constraint violation\nCREATE TABLE vendor (\n  vendor_id NUMBER PRIMARY KEY,\n  tax_id    VARCHAR2(20) UNIQUE\n);\nINSERT INTO vendor VALUES (1, NULL);\nINSERT INTO vendor VALUES (2, NULL);  -- Succeeds!",
       "output": "Table created.\n1 row created.\n1 row created.\nNote: In Oracle, two NULLs are not equal, so UNIQUE allows multiple NULL entries."
     },
