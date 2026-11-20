@@ -708,17 +708,26 @@
         const firestoreData = docSnap.exists() ? docSnap.data() : {};
         const localKeysToUpload = {};
 
-        // Migrate any pre-existing localStorage scores & highlights into Firestore
+        // 1. Proactive upload of local highlights that are newer or missing from Firestore
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k.startsWith('stage_gate_mastery_') || k.startsWith('stage_gate_highlights_'))) {
+          if (k && k.startsWith('stage_gate_mastery_')) {
             const rawVal = localStorage.getItem(k);
             if (!(k in firestoreData) && rawVal) {
+              localKeysToUpload[k] = parseInt(rawVal, 10) || rawVal;
+            }
+          } else if (k && k.startsWith('stage_gate_highlights_')) {
+            const rawVal = localStorage.getItem(k);
+            if (rawVal) {
               try {
-                localKeysToUpload[k] = JSON.parse(rawVal);
-              } catch(e) {
-                localKeysToUpload[k] = rawVal;
-              }
+                const localList = JSON.parse(rawVal);
+                if (Array.isArray(localList) && localList.length > 0) {
+                  const remoteList = Array.isArray(firestoreData[k]) ? firestoreData[k] : [];
+                  if (localList.length > remoteList.length || !(k in firestoreData)) {
+                    localKeysToUpload[k] = localList;
+                  }
+                }
+              } catch(e) {}
             }
           }
         }
@@ -727,9 +736,15 @@
           setDoc(masteryDocRef, localKeysToUpload, { merge: true }).catch(console.warn);
         }
 
-        // Apply incoming Firestore data to local storage and update visuals
+        // 2. Apply incoming Firestore data non-destructively (never let an empty/stale remote wipe local data!)
         let changedScores = false;
         let changedHighlights = false;
+        const recentDeletions = window._recentlyDeletedSnippets || {};
+        const now = Date.now();
+        for (const [snip, exp] of Object.entries(recentDeletions)) {
+          if (exp < now) delete recentDeletions[snip];
+        }
+
         for (const [key, val] of Object.entries(firestoreData)) {
           if (key.startsWith('stage_gate_mastery_')) {
             if (localStorage.getItem(key) !== val.toString()) {
@@ -737,13 +752,48 @@
               changedScores = true;
             }
           } else if (key.startsWith('stage_gate_highlights_')) {
-            const incomingStr = JSON.stringify(val);
-            if (localStorage.getItem(key) !== incomingStr) {
-              localStorage.setItem(key, incomingStr);
+            const incomingList = Array.isArray(val) ? val : [];
+            let localList = [];
+            try {
+              localList = JSON.parse(localStorage.getItem(key) || '[]');
+            } catch(e) {
+              localList = [];
+            }
+            if (!Array.isArray(localList)) localList = [];
+
+            // Ignore remote items if the user recently explicitly deleted them locally
+            const validIncoming = incomingList.filter(s => {
+              const norm = (s || '').replace(/\s+/g, ' ').trim();
+              return norm.length >= 2 && !recentDeletions[norm];
+            });
+
+            // Smart Merge: UNION of local and valid remote (Local highlights are NEVER lost!)
+            const merged = [...localList];
+            validIncoming.forEach(item => {
+              const normItem = (item || '').replace(/\s+/g, ' ').trim();
+              if (normItem.length >= 2) {
+                const exists = merged.some(m => (m || '').replace(/\s+/g, ' ').trim() === normItem);
+                if (!exists) merged.push(item);
+              }
+            });
+
+            // If local has items not yet on the server, queue them to upload to Firestore
+            if (merged.length > incomingList.length) {
+              localKeysToUpload[key] = merged;
+            }
+
+            const mergedStr = JSON.stringify(merged);
+            if (localStorage.getItem(key) !== mergedStr) {
+              localStorage.setItem(key, mergedStr);
               changedHighlights = true;
             }
           }
         }
+
+        if (Object.keys(localKeysToUpload).length > 0) {
+          setDoc(masteryDocRef, localKeysToUpload, { merge: true }).catch(console.warn);
+        }
+
         if (changedScores && typeof window.refreshCurrentTopicVisuals === 'function') {
           window.refreshCurrentTopicVisuals();
         }
@@ -768,7 +818,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795175145651"></script>
+  <script src="topics-data.js?v=1795177440805"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1235,6 +1285,10 @@
 
       const cleanSnippet = snippet.replace(/\s+/g, ' ').trim();
 
+      // Track recent deletion to prevent Firestore snapshot race condition
+      window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+      window._recentlyDeletedSnippets[cleanSnippet] = Date.now() + 30000;
+
       // Prune exact match and any overlapping/substring match so stacked duplicates are completely wiped!
       list = list.filter(s => {
         const norm = (s || '').replace(/\s+/g, ' ').trim();
@@ -1484,6 +1538,9 @@
       });
 
       list.push(cleanSnippet);
+      if (window._recentlyDeletedSnippets) {
+        delete window._recentlyDeletedSnippets[cleanSnippet];
+      }
       localStorage.setItem(storageKey, JSON.stringify(list));
 
       // 3. Persist to Firestore
@@ -1771,6 +1828,15 @@
 
     function clearConceptHighlights(topicId, conceptNum) {
       const highlightKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+      window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+      let oldList = [];
+      try { oldList = JSON.parse(localStorage.getItem(highlightKey) || '[]'); } catch(e) {}
+      if (Array.isArray(oldList)) {
+        oldList.forEach(s => {
+          const norm = (s || '').replace(/\s+/g, ' ').trim();
+          if (norm) window._recentlyDeletedSnippets[norm] = Date.now() + 30000;
+        });
+      }
       localStorage.removeItem(highlightKey);
       if (window.StageGateSync && window.StageGateSync.saveHighlights) {
         window.StageGateSync.saveHighlights(highlightKey, []);
