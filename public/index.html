@@ -838,7 +838,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795187713289"></script>
+  <script src="topics-data.js?v=1795187893276"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1475,19 +1475,7 @@
       activeTopicId = topicId;
       activeConceptNum = conceptNum;
 
-      const existingMark = startNode.closest('.exam-focus-highlight') || 
-        (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? 
-          range.commonAncestorContainer.closest('.exam-focus-highlight') : 
-          range.commonAncestorContainer.parentElement ? range.commonAncestorContainer.parentElement.closest('.exam-focus-highlight') : null);
-
-      if (existingMark) {
-        const markTopic = existingMark.getAttribute('data-topic');
-        const markConcept = parseInt(existingMark.getAttribute('data-concept'));
-        const markSnippet = existingMark.getAttribute('data-snippet');
-        setFloatingBtnToRemoveMode(markTopic, markConcept, markSnippet, existingMark);
-      } else {
-        setFloatingBtnToHighlightMode();
-      }
+      setFloatingBtnToHighlightMode();
 
       const rect = range.getBoundingClientRect();
       showFloatingBtnAtRect(rect);
@@ -1953,19 +1941,6 @@
           cancelHold(e);
         }
       }
-
-      // Tap on highlight to show floating Remove button right above it
-      mark.addEventListener('click', (e) => {
-        if (hasHoldTriggeredRemoval || isSavingHighlight) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const topicId = mark.getAttribute('data-topic');
-        const conceptNum = parseInt(mark.getAttribute('data-concept'));
-        const snippet = mark.getAttribute('data-snippet');
-        setFloatingBtnToRemoveMode(topicId, conceptNum, snippet, mark);
-        const rect = mark.getBoundingClientRect();
-        showFloatingBtnAtRect(rect);
-      });
 
       // Touch events
       mark.addEventListener('touchstart', startHold, { passive: true });
