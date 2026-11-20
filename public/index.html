@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Deloitte Stage Gate — SQL Master Notes</title>
+  <meta name="description" content="Comprehensive Oracle SQL Revision Notes for Deloitte Stage Gate Exam">
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%200%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- GitHub Dark Theme for Highlight.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Prevent Any Mobile Horizontal Scrolling */
+    html, body {
+      overflow-x: hidden !important;
+      max-width: 100vw;
+      width: 100%;
+      background-color: #000000;
+      color: #ffffff;
+    }
+
+    /* Markdown Monochrome Base with Minor Color Touches */
+    .markdown-body {
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+      max-width: 100%;
+      color: #e4e4e7;
+    }
+
+    .markdown-body h1 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #27272a;
+      padding-bottom: 0.5rem;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+    @media (min-width: 640px) {
+      .markdown-body h1 { font-size: 1.85rem; }
+    }
+
+    /* Concept Header: White with Accent Bar & Pinned Mastery Button */
+    .markdown-body h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      color: #ffffff;
+      line-height: 1.35;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      gap: 0.75rem;
+      border-left: 3px solid #27272a;
+      padding-left: 0.65rem;
+      padding-right: 0.35rem;
+      transition: border-color 0.2s ease;
+    }
+
+    .markdown-body h2.concept-mastered {
+      border-left-color: #10b981;
+    }
+
+    .markdown-body h2 .concept-title-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    /* Mastery Tracker Button: Fixed Dimensions, Zero Growing, No Edge Clipping */
+    .concept-mastery-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      width: 58px;
+      min-width: 58px;
+      height: 26px;
+      padding-top: 2px;
+      padding-bottom: 0;
+      padding-left: 0.35rem;
+      padding-right: 0.35rem;
+      line-height: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff !important;
+      background-color: #18181b;
+      border: 1px solid #52525b;
+      border-radius: 9999px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      margin-right: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    .concept-mastery-btn:hover {
+      background-color: #27272a;
+      border-color: #71717a;
+    }
+
+    .concept-mastery-btn:active {
+      background-color: #3f3f46;
+    }
+
+    /* Green when 5/5 reached */
+    .concept-mastery-btn.mastered {
+      background-color: rgba(16, 185, 129, 0.2) !important;
+      border-color: #10b981 !important;
+      color: #34d399 !important;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
+    }
+
+    .concept-mastery-btn.mastered:hover {
+      background-color: rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .concept-mastery-btn .check-icon {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #10b981;
+      line-height: 1;
+    }
+
+    /* Permanent Exam Focus Highlight: Crisp Emerald Mint (Zero Layout Shift / Zero Word Wrapping Shift) */
+    .exam-focus-highlight {
+      background: transparent !important;
+      color: #34d399 !important;
+      border: none !important;
+      text-decoration: none !important;
+      border-radius: 0;
+      padding: 0 !important;
+      margin: 0 !important;
+      font-weight: inherit !important;
+      letter-spacing: inherit !important;
+      cursor: pointer;
+      box-shadow: none !important;
+      transition: opacity 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    .exam-focus-highlight code {
+      background: transparent !important;
+      border-color: rgba(52, 211, 153, 0.45) !important;
+      color: #34d399 !important;
+    }
+
+    #triggerHighlightBtn.mode-highlight:hover {
+      background-color: #059669 !important;
+      border-color: #6ee7b7 !important;
+    }
+
+    #triggerHighlightBtn.mode-unhighlight:hover {
+      background-color: #be123c !important;
+      border-color: #fda4af !important;
+    }
+
+    .exam-focus-highlight.holding {
+      opacity: 0.35 !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+
+    .markdown-body h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-top: 1.35rem;
+      margin-bottom: 0.5rem;
+      color: #e2e8f0;
+      line-height: 1.35;
+    }
+
+    .markdown-body p {
+      margin-bottom: 0.85rem;
+      line-height: 1.65;
+      font-size: 0.925rem;
+      color: #d4d4d8;
+    }
+
+    .markdown-body ul {
+      list-style-type: disc;
+      padding-left: 1.25rem;
+      margin-bottom: 1rem;
+      color: #d4d4d8;
+    }
+
+    .markdown-body li {
+      margin-bottom: 0.35rem;
+      line-height: 1.6;
+      font-size: 0.925rem;
+    }
+
+    /* Minor Color Accent: Warm Amber for Bold Highlights */
+    .markdown-body strong {
+      font-weight: 600;
+      color: #fbbf24;
+    }
+
+    /* Tables: Contained Horizontal Scroll */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin: 1.25rem 0;
+      border-radius: 0.5rem;
+      border: 1px solid #27272a;
+      -webkit-overflow-scrolling: touch;
+      background: #09090b;
+    }
+
+    .markdown-body table {
+      width: 100%;
+      min-width: 480px;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .markdown-body th, .markdown-body td {
+      border: 1px solid #27272a;
+      padding: 0.65rem 0.85rem;
+      text-align: left;
+    }
+
+    /* Hard Revision Card Table Tweaks */
+    .snippet-card .table-wrapper {
+      margin: 0.35rem 0 0.15rem 0;
+      border-color: #27272a;
+    }
+    .snippet-card .markdown-body table {
+      font-size: 0.775rem;
+      min-width: 420px;
+    }
+    .snippet-card .markdown-body th,
+    .snippet-card .markdown-body td {
+      padding: 0.45rem 0.65rem;
+    }
+    .snippet-card .markdown-body p {
+      margin-bottom: 0.35rem;
+    }
+    .snippet-card .markdown-body p:last-child {
+      margin-bottom: 0;
+    }
+    .snippet-card .markdown-body ul {
+      margin-bottom: 0;
+      padding-left: 1.15rem;
+    }
+    .snippet-card .markdown-body li {
+      font-size: 0.775rem;
+      margin-bottom: 0.25rem;
+      line-height: 1.5;
+    }
+    .snippet-card .markdown-body li:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Minor Color Accent: Subtle Sky Tint on Table Headers */
+    .markdown-body th {
+      background: #141416;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    .markdown-body tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Inline Code: Bold White Text & Clean Neutral Box */
+    .markdown-body code:not(pre code) {
+      background: #18181b;
+      color: #ffffff;
+      font-weight: 600;
+      border: 1px solid #3f3f46;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.825em;
+      word-break: break-word;
+      white-space: normal;
+    }
+
+    /* Code Blocks */
+    .markdown-body pre {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 0.5rem;
+      padding: 0.9rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+      max-width: 100%;
+      font-size: 0.825rem;
+      line-height: 1.5;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Minor Color Accent: Warm Amber Warning Border & Text */
+    .markdown-body blockquote {
+      border-left: 3px solid #f59e0b;
+      background: #14120c;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 0.375rem 0.375rem 0;
+      color: #fde68a;
+      font-size: 0.875rem;
+    }
+
+    /* Clean, Lightweight Examples Dropdown */
+    details.concept-examples {
+      margin: 1rem 0 1.5rem 0;
+      border: 1px solid #27272a;
+      border-radius: 0.5rem;
+      background-color: #09090b;
+      overflow: hidden;
+    }
+
+    details.concept-examples summary {
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: #f4f4f5;
+      background-color: #121215;
+      transition: background-color 0.15s ease;
+    }
+
+    details.concept-examples summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.concept-examples summary:hover,
+    details.concept-examples summary:focus,
+    details.concept-examples summary:active {
+      background-color: #18181b;
+      color: #ffffff;
+    }
+
+    details.concept-examples[open] summary {
+      border-bottom: 1px solid #27272a;
+      background-color: #141418;
+      color: #ffffff;
+    }
+
+    details.concept-examples summary .summary-chevron {
+      transition: transform 0.2s ease;
+      color: #a1a1aa;
+      flex-shrink: 0;
+    }
+
+    details.concept-examples[open] summary .summary-chevron {
+      transform: rotate(180deg);
+      color: #e4e4e7;
+    }
+
+    details.concept-examples .examples-body {
+      padding: 0.65rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      background-color: #050507;
+    }
+
+    details.concept-examples .example-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      border-bottom: 1px solid #1c1c20;
+      padding-bottom: 0.85rem;
+    }
+
+    details.concept-examples .example-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    details.concept-examples .example-item pre {
+      margin: 0 !important;
+      background: #000000 !important;
+      border: 1px solid #27272a !important;
+      border-radius: 0.375rem !important;
+      padding: 0.6rem 0.75rem !important;
+      font-size: 0.8rem !important;
+      line-height: 1.45 !important;
+    }
+
+    /* SQL Query: Wraps cleanly to next line, NO horizontal scrolling */
+    details.concept-examples .example-item pre.example-sql-code,
+    details.concept-examples .example-item pre.example-sql-code code {
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-x: hidden !important;
+    }
+
+    details.concept-examples .example-output-label {
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #71717a;
+      letter-spacing: 0.05em;
+      margin-top: 0.15rem;
+    }
+
+    /* Output Table: Preserves strict columnar grid and horizontal swipe */
+    details.concept-examples .example-output-text {
+      background: #090d12 !important;
+      border-color: #1e293b !important;
+      color: #cbd5e1 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.725rem !important;
+      line-height: 1.4 !important;
+      white-space: pre !important;
+      word-break: normal !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Bottom close button inside open examples */
+    .examples-close-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      align-self: center;
+      margin-top: 0.35rem;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.725rem;
+      font-weight: 500;
+      color: #a1a1aa;
+      background-color: #121215;
+      border: 1px solid #27272a;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .examples-close-btn:hover,
+    .examples-close-btn:focus,
+    .examples-close-btn:active {
+      background-color: #1f1f23;
+      color: #ffffff;
+      border-color: #3f3f46;
+    }
+
+    .examples-close-btn svg {
+      transition: transform 0.15s ease;
+    }
+
+    .examples-close-btn:hover svg {
+      transform: translateY(-1px);
+    }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+    ::selection {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    ::-moz-selection {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+  </style>
+</head>
+<body class="bg-black text-white font-sans antialiased selection:bg-white selection:text-black w-full overflow-x-hidden">
+
+  <!-- Mobile-Optimized Pure Black Header -->
+  <header class="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-zinc-800 px-3.5 sm:px-6 py-2.5 w-full">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+      
+      <!-- Left: Menu & Brand with Minor Amber Pop -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <button id="mobileMenuBtn" aria-label="Open Topics" class="lg:hidden p-1.5 rounded-lg bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800 shrink-0">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <div class="flex items-center gap-2 truncate">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 font-bold text-sm border border-amber-500/20 flex items-center justify-center shrink-0">⚡</div>
+          <span class="text-sm font-bold text-white tracking-tight truncate">Stage Gate Notes</span>
+          <span class="hidden md:inline-block text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Oracle SQL</span>
+        </div>
+      </div>
+
+      <!-- Center / Right: Hard Revision Pill & Search -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="headerHardRevisionBtn" type="button" title="Open Hard Revision Sheet" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-semibold transition cursor-pointer shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 11-6 6v3h3l6-6"/>
+            <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L15 4"/>
+          </svg>
+          <span class="hidden sm:inline">Hard Revision</span>
+          <span id="headerRevisionCount" class="font-mono text-[10px] font-bold bg-emerald-500/20 px-1.5 py-0.2 rounded-full border border-emerald-500/30">0</span>
+        </button>
+
+        <div class="relative hidden sm:block w-44 md:w-56">
+          <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"></i>
+          <input 
+            id="searchInput" 
+            type="text" 
+            placeholder="Search notes..." 
+            class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-2.5 py-1 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition"
+          >
+        </div>
+
+        <button id="mobileSearchToggle" aria-label="Toggle Search" class="sm:hidden p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Mobile Search Bar -->
+    <div id="mobileSearchBar" class="hidden sm:hidden pt-2 pb-1">
+      <div class="relative w-full">
+        <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"></i>
+        <input 
+          id="mobileSearchInput" 
+          type="text" 
+          placeholder="Search concepts, ORA-..." 
+          class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+        >
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout Container -->
+  <div class="flex min-h-[calc(100vh-53px)] w-full">
+    
+    <!-- Sidebar Navigation -->
+    <aside 
+      id="sidebar" 
+      class="fixed inset-y-0 left-0 z-50 w-72 lg:w-76 bg-black border-r border-zinc-800 transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-200 ease-in-out flex flex-col pt-12 lg:pt-0"
+    >
+      <div class="lg:hidden flex justify-between items-center px-4 py-3 border-b border-zinc-800">
+        <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">15 Topics</span>
+        <button id="closeSidebarBtn" class="p-1 rounded-lg text-zinc-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Pinned Hard Revision Entry Point -->
+      <div class="px-3 pt-3 pb-2 border-b border-zinc-800">
+        <button id="sidebarHardRevisionBtn" type="button" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-900/60 border border-emerald-500/30 text-white hover:border-emerald-400 group cursor-pointer shadow-md">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 group-hover:scale-105 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 11-6 6v3h3l6-6"/>
+                <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L15 4"/>
+              </svg>
+            </div>
+            <div class="truncate">
+              <div class="font-bold text-white text-xs tracking-tight flex items-center gap-1.5">
+                <span>Hard Revision</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+            </div>
+          </div>
+          <span id="sidebarRevisionCount" class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold shrink-0">0</span>
+        </button>
+      </div>
+
+      <div class="p-3 flex-1 overflow-y-auto space-y-1" id="topicsNav">
+        <!-- Injected via JS -->
+      </div>
+
+      <div class="p-3 border-t border-zinc-800 text-[11px] text-zinc-500 flex items-center justify-between">
+        <span>Oracle 19c/21c</span>
+        <span class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 font-mono">15 Topics</span>
+      </div>
+    </aside>
+
+    <!-- Mobile Overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 hidden lg:hidden"></div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto px-3.5 sm:px-6 py-6 w-full">
+      <!-- Top Topic Meta Bar -->
+      <div class="mb-4 pb-3 border-b border-zinc-800 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <span id="topicBadge" class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">TOPIC 1 OF 15</span>
+          <h1 id="currentTopicTitle" class="text-xl sm:text-2xl font-extrabold text-white mt-1 truncate">SELECT Statement</h1>
+        </div>
+        <button id="copyAllBtn" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-emerald-400 transition">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Copy Notes</span>
+        </button>
+      </div>
+
+      <!-- Markdown Body -->
+      <article id="contentContainer" class="markdown-body text-zinc-200 w-full overflow-hidden">
+        <!-- Rendered Topic Content Injected Here -->
+      </article>
+
+      <!-- Bottom Prev / Next Navigation -->
+      <div id="topicNavFooter" class="mt-10 pt-5 border-t border-zinc-800 flex items-center justify-between gap-3">
+        <button id="prevBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+          <span>Previous</span>
+        </button>
+
+        <button id="nextBtn" class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-xs font-semibold text-black transition cursor-pointer">
+          <span>Next</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Floating Text Selection Highlight Button: Theme-Matching Emerald Green -->
+  <div id="highlightFloatingBtn" class="fixed z-50 hidden -translate-x-1/2 -translate-y-full transition-opacity duration-150 pointer-events-auto">
+    <button id="triggerHighlightBtn" type="button" class="mode-highlight flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-black font-semibold text-xs shadow-2xl transition-all active:scale-95 cursor-pointer" style="background-color: #10b981; border: 1px solid #34d399; box-shadow: 0 4px 18px rgba(16, 185, 129, 0.45);">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 11-6 6v3h3l6-6"/>
+        <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L15 4"/>
+      </svg>
+      <span>Highlight</span>
+    </button>
+  </div>
+
+
+  <!-- Firebase Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6XqBMrTBRJwNw9cag85dP4JYZ6No1WRk",
+      authDomain: "stage-gate-8a890.firebaseapp.com",
+      projectId: "stage-gate-8a890",
+      storageBucket: "stage-gate-8a890.firebasestorage.app",
+      messagingSenderId: "534655138793",
+      appId: "1:534655138793:web:88b58645758312ca4de978",
+      measurementId: "G-SKZ38251QP"
+    };
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      const db = getFirestore(app);
+      const masteryDocRef = doc(db, "study_progress", "mastery");
+
+      window.StageGateSync = {
+        saveScore: async (storageKey, score) => {
+          try {
+            await setDoc(masteryDocRef, { [storageKey]: score }, { merge: true });
+          } catch (err) {
+            console.warn("Firestore save error:", err);
+          }
+        },
+        saveHighlights: async (storageKey, list) => {
+          try {
+            await setDoc(masteryDocRef, { [storageKey]: list }, { merge: true });
+          } catch (err) {
+            console.warn("Firestore save highlights error:", err);
+          }
+        }
+      };
+
+      // Realtime listener: syncs Firestore -> localStorage & updates UI live!
+      onSnapshot(masteryDocRef, (docSnap) => {
+        const firestoreData = docSnap.exists() ? docSnap.data() : {};
+        const localKeysToUpload = {};
+
+        // Migrate any pre-existing localStorage scores & highlights into Firestore
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('stage_gate_mastery_') || k.startsWith('stage_gate_highlights_'))) {
+            const rawVal = localStorage.getItem(k);
+            if (!(k in firestoreData) && rawVal) {
+              try {
+                localKeysToUpload[k] = JSON.parse(rawVal);
+              } catch(e) {
+                localKeysToUpload[k] = rawVal;
+              }
+            }
+          }
+        }
+
+        if (Object.keys(localKeysToUpload).length > 0) {
+          setDoc(masteryDocRef, localKeysToUpload, { merge: true }).catch(console.warn);
+        }
+
+        // Apply incoming Firestore data to local storage and update visuals
+        let changedScores = false;
+        let changedHighlights = false;
+        for (const [key, val] of Object.entries(firestoreData)) {
+          if (key.startsWith('stage_gate_mastery_')) {
+            if (localStorage.getItem(key) !== val.toString()) {
+              localStorage.setItem(key, val.toString());
+              changedScores = true;
+            }
+          } else if (key.startsWith('stage_gate_highlights_')) {
+            const incomingStr = JSON.stringify(val);
+            if (localStorage.getItem(key) !== incomingStr) {
+              localStorage.setItem(key, incomingStr);
+              changedHighlights = true;
+            }
+          }
+        }
+        if (changedScores && typeof window.refreshCurrentTopicVisuals === 'function') {
+          window.refreshCurrentTopicVisuals();
+        }
+        if (changedHighlights) {
+          if (typeof window.refreshCurrentTopicHighlights === 'function') {
+            window.refreshCurrentTopicHighlights();
+          }
+          if (typeof window.updateHardRevisionBadges === 'function') {
+            window.updateHardRevisionBadges();
+          }
+          if (window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
+            window.loadHardRevision(false);
+          }
+        }
+      }, (err) => {
+        console.warn("Firestore snapshot error:", err);
+      });
+
+    } catch (e) {
+      console.warn("Firebase:", e.message);
+    }
+  </script>
+
+  <!-- Load Data and App Script with Cache-Buster -->
+  <script src="topics-data.js?v=1795156035887"></script>
+  <script>
+    let currentTopicIndex = 0;
+    const topics = window.STAGE_GATE_DATA || [];
+
+    const renderer = new marked.Renderer();
+    const originalTable = renderer.table.bind(renderer);
+    renderer.table = function(header, body) {
+      return `<div class="table-wrapper">${originalTable(header, body)}</div>`;
+    };
+
+    marked.setOptions({
+      renderer: renderer,
+      breaks: true,
+      gfm: true,
+      highlight: function(code, lang) {
+        const language = hljs.getLanguage(lang) ? lang : 'sql';
+        return hljs.highlight(code, { language }).value;
+      }
+    });
+
+    const topicsNav = document.getElementById('topicsNav');
+    const contentContainer = document.getElementById('contentContainer');
+    const currentTopicTitle = document.getElementById('currentTopicTitle');
+    const topicBadge = document.getElementById('topicBadge');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const searchInput = document.getElementById('searchInput');
+    const mobileSearchInput = document.getElementById('mobileSearchInput');
+    const mobileSearchToggle = document.getElementById('mobileSearchToggle');
+    const mobileSearchBar = document.getElementById('mobileSearchBar');
+    const copyAllBtn = document.getElementById('copyAllBtn');
+
+    function renderNav(filter = '') {
+      topicsNav.innerHTML = '';
+
+      // Update sidebar Hard Revision button active state
+      const sidebarHardRev = document.getElementById('sidebarHardRevisionBtn');
+      if (sidebarHardRev) {
+        if (window.isHardRevisionActive) {
+          sidebarHardRev.className = "w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-emerald-950/70 border border-emerald-400 text-white shadow-lg shadow-emerald-950/40 cursor-pointer";
+        } else {
+          sidebarHardRev.className = "w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-900/60 border border-emerald-500/30 text-white hover:border-emerald-400 group cursor-pointer shadow-md";
+        }
+      }
+
+      topics.forEach((topic, idx) => {
+        if (filter && !topic.title.toLowerCase().includes(filter.toLowerCase()) && !topic.content.toLowerCase().includes(filter.toLowerCase())) {
+          return;
+        }
+
+        const btn = document.createElement('button');
+        const isActive = !window.isHardRevisionActive && idx === currentTopicIndex;
+        btn.className = `w-full text-left px-2.5 py-2 rounded-lg text-xs font-medium transition flex items-center justify-between gap-2 ${
+          isActive 
+            ? 'bg-zinc-900 text-white font-semibold border-l-2 border-emerald-400 pl-3' 
+            : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent'
+        }`;
+
+        const iconName = topic.id === 'general_knowledge' ? 'brain' : 'book-open';
+        btn.innerHTML = `
+          <div class="flex items-center gap-2 truncate">
+            <i data-lucide="${iconName}" class="w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-emerald-400' : 'text-zinc-500'}"></i>
+            <span class="truncate">${topic.title}</span>
+          </div>
+          ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>' : ''}
+        `;
+
+        btn.onclick = () => {
+          loadTopic(idx);
+          closeSidebar();
+        };
+
+        topicsNav.appendChild(btn);
+      });
+      lucide.createIcons();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function injectConceptExamples(examples) {
+      if (!examples) return;
+      const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+      
+      h2Elements.forEach((h2, idx) => {
+        const match = h2.textContent.match(/^(\d+)\./);
+        if (!match) return;
+        const conceptNum = parseInt(match[1]);
+        const conceptExList = examples[conceptNum];
+        if (!conceptExList || conceptExList.length === 0) return;
+
+        const details = document.createElement('details');
+        details.className = 'concept-examples';
+
+        const summary = document.createElement('summary');
+        summary.innerHTML = `
+          <span>Examples</span>
+          <svg class="summary-chevron" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        `;
+
+        const body = document.createElement('div');
+        body.className = 'examples-body';
+
+        conceptExList.forEach((ex) => {
+          const card = document.createElement('div');
+          card.className = 'example-item';
+
+          let outputHtml = '';
+          if (ex.output) {
+            outputHtml = `
+              <div class="example-output-label">OUTPUT</div>
+              <pre class="example-output-text">${escapeHtml(ex.output)}</pre>
+            `;
+          }
+
+          card.innerHTML = `
+            <pre class="example-sql-code"><code class="language-sql">${escapeHtml(ex.sql)}</code></pre>
+            ${outputHtml}
+          `;
+          body.appendChild(card);
+        });
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'examples-close-btn';
+        closeBtn.setAttribute('aria-label', 'Close examples');
+        closeBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.2" fill="none"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          <span>Close</span>
+        `;
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          details.open = false;
+          summary.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+        body.appendChild(closeBtn);
+
+        details.appendChild(summary);
+        details.appendChild(body);
+
+        const nextH2 = h2Elements[idx + 1];
+        if (nextH2) {
+          contentContainer.insertBefore(details, nextH2);
+        } else {
+          contentContainer.appendChild(details);
+        }
+      });
+    }
+
+    function injectConceptMasteryTrackers(topicId) {
+      const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+      h2Elements.forEach((h2) => {
+        const match = h2.textContent.match(/^(\d+)\./);
+        if (!match) return;
+        const conceptNum = parseInt(match[1]);
+        const storageKey = `stage_gate_mastery_${topicId}_${conceptNum}`;
+
+        const existingBtn = h2.querySelector('.concept-mastery-btn');
+        if (existingBtn && typeof existingBtn.syncScore === 'function') {
+          existingBtn.syncScore();
+          return;
+        }
+
+        let score = parseInt(localStorage.getItem(storageKey) || '0', 10);
+        if (isNaN(score) || score < 0) score = 0;
+        if (score > 5) score = 5;
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'concept-title-text';
+        titleSpan.innerHTML = h2.innerHTML;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'concept-mastery-btn';
+        btn.title = 'Click to increment revision score (0 to 5)';
+
+        function updateVisuals() {
+          btn.innerHTML = score === 5 ? `5/5 <span class="check-icon">✓</span>` : `${score}/5`;
+          if (score === 5) {
+            btn.classList.add('mastered');
+            h2.classList.add('concept-mastered');
+            clearConceptHighlights(topicId, conceptNum);
+          } else {
+            btn.classList.remove('mastered');
+            h2.classList.remove('concept-mastered');
+          }
+        }
+
+        btn.syncScore = function() {
+          score = parseInt(localStorage.getItem(storageKey) || '0', 10);
+          if (isNaN(score) || score < 0) score = 0;
+          if (score > 5) score = 5;
+          updateVisuals();
+        };
+
+        updateVisuals();
+
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          score = (score >= 5) ? 0 : score + 1;
+          localStorage.setItem(storageKey, score.toString());
+          updateVisuals();
+          if (window.StageGateSync && window.StageGateSync.saveScore) {
+            window.StageGateSync.saveScore(storageKey, score);
+          }
+        });
+
+        btn.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          score = (score <= 0) ? 5 : score - 1;
+          localStorage.setItem(storageKey, score.toString());
+          updateVisuals();
+          if (window.StageGateSync && window.StageGateSync.saveScore) {
+            window.StageGateSync.saveScore(storageKey, score);
+          }
+        });
+
+        h2.innerHTML = '';
+        h2.appendChild(titleSpan);
+        h2.appendChild(btn);
+      });
+    }
+
+    window.refreshCurrentTopicVisuals = function() {
+      if (topics[currentTopicIndex]) {
+        injectConceptMasteryTrackers(topics[currentTopicIndex].id);
+      }
+    };
+
+    function loadTopic(index, isFromJump = false) {
+      if (index < 0 || index >= topics.length) return;
+      window.isHardRevisionActive = false;
+      if (!isFromJump) {
+        hideRevisionReturnButton();
+        window.lastRevisionJump = null;
+      }
+      currentTopicIndex = index;
+      const topic = topics[index];
+
+      // Persist active topic view across page reloads
+      try {
+        localStorage.setItem('stage_gate_active_view', index.toString());
+        if (history.replaceState) {
+          history.replaceState(null, '', '#' + topic.id);
+        } else {
+          location.hash = topic.id;
+        }
+      } catch (e) {}
+
+      currentTopicTitle.textContent = topic.title;
+      topicBadge.classList.remove('hidden');
+      if (topic.id === 'general_knowledge') {
+        topicBadge.textContent = 'ENGINE ESSENTIALS';
+      } else {
+        topicBadge.textContent = `TOPIC ${index} OF 15`;
+      }
+      const copySpan = copyAllBtn.querySelector('span');
+      if (copySpan) copySpan.textContent = 'Copy Notes';
+
+      contentContainer.innerHTML = marked.parse(topic.content);
+
+      if (topic.examples) {
+        injectConceptExamples(topic.examples);
+      }
+
+      // 1. Run Highlight.js syntax highlighting & attach copy buttons on code blocks FIRST
+      document.querySelectorAll('pre code').forEach((el) => {
+        hljs.highlightElement(el);
+        const pre = el.parentElement;
+        if (!pre.classList.contains('example-output-code') && !pre.querySelector('.copy-code-btn')) {
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'copy-code-btn absolute top-1.5 right-1.5 px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 font-mono transition';
+          copyBtn.textContent = 'Copy';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(el.innerText);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1800);
+          };
+          pre.style.position = 'relative';
+          pre.appendChild(copyBtn);
+        }
+      });
+
+      // 2. Inject concept mastery trackers
+      injectConceptMasteryTrackers(topic.id);
+
+      // 3. Apply concept highlights AFTER syntax highlighting is finished so hljs never wipes marks!
+      applyAllConceptHighlights(topic.id);
+
+      const topicNavFooter = document.getElementById('topicNavFooter');
+      if (topicNavFooter) {
+        let returnBtnHtml = '';
+        if (window.lastRevisionJump) {
+          returnBtnHtml = `
+            <button id="footerReturnRevisionBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7 7-7-7 7-7"/></svg>
+              <span>Return to Revision</span>
+            </button>
+          `;
+        }
+        topicNavFooter.innerHTML = `
+          <button id="prevBtn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Previous</span>
+          </button>
+          ${returnBtnHtml}
+          <button id="nextBtn" class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-xs font-semibold text-black transition cursor-pointer">
+            <span>Next</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+        const footerRetBtn = document.getElementById('footerReturnRevisionBtn');
+        if (footerRetBtn) {
+          footerRetBtn.onclick = () => returnToHardRevisionLocation();
+        }
+        const pBtn = document.getElementById('prevBtn');
+        const nBtn = document.getElementById('nextBtn');
+        if (pBtn) {
+          pBtn.disabled = index === 0;
+          pBtn.style.opacity = index === 0 ? '0.35' : '1';
+          pBtn.onclick = () => loadTopic(currentTopicIndex - 1);
+        }
+        if (nBtn) {
+          nBtn.disabled = index === topics.length - 1;
+          nBtn.style.opacity = index === topics.length - 1 ? '0.35' : '1';
+          nBtn.onclick = () => loadTopic(currentTopicIndex + 1);
+        }
+      }
+
+      renderNav(searchInput.value || mobileSearchInput.value);
+      if (!isFromJump) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      lucide.createIcons();
+    }
+
+    function openSidebar() {
+      sidebar.classList.remove('-translate-x-full');
+      sidebarOverlay.classList.remove('hidden');
+    }
+    function closeSidebar() {
+      sidebar.classList.add('-translate-x-full');
+      sidebarOverlay.classList.add('hidden');
+    }
+    mobileMenuBtn.onclick = openSidebar;
+    closeSidebarBtn.onclick = closeSidebar;
+    sidebarOverlay.onclick = closeSidebar;
+
+    mobileSearchToggle.onclick = () => {
+      mobileSearchBar.classList.toggle('hidden');
+      if (!mobileSearchBar.classList.contains('hidden')) {
+        mobileSearchInput.focus();
+      }
+    };
+
+    searchInput.addEventListener('input', (e) => {
+      renderNav(e.target.value);
+    });
+    mobileSearchInput.addEventListener('input', (e) => {
+      renderNav(e.target.value);
+    });
+
+    copyAllBtn.onclick = () => {
+      if (window.isHardRevisionActive) {
+        const data = getAllHighlightsData();
+        if (data.totalCount === 0) {
+          return;
+        }
+        let text = '# Stage Gate - Hard Revision Focus Traps\n\n';
+        data.topics.forEach(t => {
+          text += `## ${t.topicTitle}\n\n`;
+          t.concepts.forEach(c => {
+            text += `### ${c.conceptTitle}\n`;
+            c.snippets.forEach(s => {
+              text += `- ${s}\n`;
+            });
+            text += '\n';
+          });
+        });
+        navigator.clipboard.writeText(text);
+      } else {
+        const topic = topics[currentTopicIndex];
+        navigator.clipboard.writeText(topic.content);
+      }
+      copyAllBtn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-emerald-400 hidden sm:inline">Copied!</span>';
+      lucide.createIcons();
+      setTimeout(() => {
+        copyAllBtn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">' + (window.isHardRevisionActive ? 'Copy Revision' : 'Copy Notes') + '</span>';
+        lucide.createIcons();
+      }, 2000);
+    };
+
+    prevBtn.onclick = () => loadTopic(currentTopicIndex - 1);
+    nextBtn.onclick = () => loadTopic(currentTopicIndex + 1);
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement === searchInput || document.activeElement === mobileSearchInput) return;
+      if (e.key === 'ArrowRight') loadTopic(currentTopicIndex + 1);
+      if (e.key === 'ArrowLeft') loadTopic(currentTopicIndex - 1);
+      if (e.key === '/') {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    /* --- Exam Focus Highlight System (Option 1) --- */
+    const highlightFloatingBtn = document.getElementById('highlightFloatingBtn');
+    const triggerHighlightBtn = document.getElementById('triggerHighlightBtn');
+    let isHoldingHighlight = false;
+
+    let activeRange = null;
+    let activeSnippet = null;
+    let activeTopicId = null;
+    let activeConceptNum = null;
+
+    function hideFloatingBtn() {
+      if (highlightFloatingBtn && !highlightFloatingBtn.classList.contains('hidden')) {
+        highlightFloatingBtn.classList.add('hidden');
+      }
+    }
+
+    function getMarksForSnippet(conceptNum, snippet) {
+      const normSnippet = (snippet || '').replace(/\s+/g, ' ').trim();
+      const allMarks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
+      return Array.from(allMarks).filter(m => {
+        const s = (m.getAttribute('data-snippet') || '').replace(/\s+/g, ' ').trim();
+        return s === normSnippet || (s.length > 8 && normSnippet.length > 8 && (s.includes(normSnippet) || normSnippet.includes(s)));
+      });
+    }
+
+    function removeSnippet(topicId, conceptNum, snippet, shouldReloadHardRevision = true) {
+      if (!topicId || !conceptNum || !snippet) return;
+      const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      } catch (err) {
+        list = [];
+      }
+
+      const cleanSnippet = snippet.replace(/\s+/g, ' ').trim();
+
+      // Prune exact match and any overlapping/substring match so stacked duplicates are completely wiped!
+      list = list.filter(s => {
+        const norm = (s || '').replace(/\s+/g, ' ').trim();
+        if (!norm) return false;
+        if (norm === cleanSnippet) return false;
+        if (cleanSnippet.length > 8 && norm.length > 8) {
+          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) return false;
+        }
+        return true;
+      });
+
+      localStorage.setItem(storageKey, JSON.stringify(list));
+      if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+        window.StageGateSync.saveHighlights(storageKey, list);
+      }
+
+      // Unwrap DOM marks for this concept that match or overlap
+      const allMarks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
+      allMarks.forEach(m => {
+        const s = (m.getAttribute('data-snippet') || '').replace(/\s+/g, ' ').trim();
+        const matches = (s === cleanSnippet) || 
+                        (cleanSnippet.length > 8 && s.length > 8 && (cleanSnippet.includes(s) || s.includes(cleanSnippet)));
+        if (matches) {
+          const parent = m.parentNode;
+          if (parent) {
+            while (m.firstChild) {
+              parent.insertBefore(m.firstChild, m);
+            }
+            parent.removeChild(m);
+          }
+        }
+      });
+
+      if (typeof window.updateHardRevisionBadges === 'function') {
+        window.updateHardRevisionBadges();
+      }
+      if (shouldReloadHardRevision && window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
+        window.loadHardRevision(false);
+      }
+    }
+
+    function checkTextSelection() {
+      if (isHoldingHighlight || window.isHardRevisionActive) return;
+
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) {
+        return;
+      }
+
+      let text = selection.toString().trim();
+      if (text.length < 2) {
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const startNode = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+
+      if (!startNode || !contentContainer.contains(startNode)) {
+        return;
+      }
+
+      if (startNode.closest('.concept-mastery-btn') || startNode.closest('h2') || startNode.closest('.examples-wrapper') || startNode.closest('.copy-code-btn')) {
+        return;
+      }
+
+      // Determine preceding h2 concept
+      const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+      let targetH2 = null;
+      for (let i = h2Elements.length - 1; i >= 0; i--) {
+        const h2 = h2Elements[i];
+        if (h2 === startNode || (h2.compareDocumentPosition(startNode) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          targetH2 = h2;
+          break;
+        }
+      }
+
+      if (!targetH2) return;
+      const match = targetH2.textContent.match(/^(\d+)\./);
+      if (!match) return;
+
+      const topicId = topics[currentTopicIndex].id;
+      const conceptNum = parseInt(match[1]);
+
+      activeRange = range.cloneRange();
+      activeSnippet = text;
+      activeTopicId = topicId;
+      activeConceptNum = conceptNum;
+
+      const rect = range.getBoundingClientRect();
+      const top = rect.top < 65 ? (rect.bottom + 10) : (rect.top - 46);
+      const left = Math.max(75, Math.min(window.innerWidth - 75, rect.left + rect.width / 2));
+
+      if (highlightFloatingBtn) {
+        highlightFloatingBtn.style.top = `${top}px`;
+        highlightFloatingBtn.style.left = `${left}px`;
+        highlightFloatingBtn.classList.remove('hidden');
+      }
+    }
+
+    document.addEventListener('selectionchange', () => {
+      if (isHoldingHighlight) {
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) {
+          try { sel.removeAllRanges(); } catch (err) {}
+        }
+        return;
+      }
+      clearTimeout(window.__selDebounce);
+      window.__selDebounce = setTimeout(checkTextSelection, 120);
+    });
+
+    document.addEventListener('pointerup', () => {
+      setTimeout(checkTextSelection, 60);
+    });
+
+    /* Highlight all text nodes intersecting a Range without missing words */
+    function highlightRange(range, topicId, conceptNum, snippet) {
+      if (!range || range.collapsed) return [];
+
+      const ancestor = range.commonAncestorContainer;
+      const root = ancestor.nodeType === Node.ELEMENT_NODE ? ancestor : ancestor.parentElement;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const targetTextNodes = [];
+
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (node.parentElement && (node.parentElement.classList.contains('concept-mastery-btn') || node.parentElement.classList.contains('exam-focus-highlight'))) {
+          continue;
+        }
+        try {
+          if (range.intersectsNode(node) && node.nodeValue && node.nodeValue.length > 0) {
+            targetTextNodes.push(node);
+          }
+        } catch (e) {
+          // Fallback if intersectsNode not available
+          targetTextNodes.push(node);
+        }
+      }
+
+      if (targetTextNodes.length === 0) return [];
+
+      const createdMarks = [];
+      targetTextNodes.forEach((node) => {
+        let start = 0;
+        let end = node.nodeValue.length;
+
+        if (node === range.startContainer) {
+          start = range.startOffset;
+        }
+        if (node === range.endContainer) {
+          end = range.endOffset;
+        }
+
+        if (start >= end) return;
+
+        const textToWrap = node.nodeValue.substring(start, end);
+        if (!textToWrap) return;
+
+        const beforeText = node.nodeValue.substring(0, start);
+        const afterText = node.nodeValue.substring(end);
+
+        const mark = document.createElement('mark');
+        mark.className = 'exam-focus-highlight';
+        mark.setAttribute('data-topic', topicId);
+        mark.setAttribute('data-concept', conceptNum);
+        mark.setAttribute('data-snippet', snippet);
+        mark.textContent = textToWrap;
+
+        const parent = node.parentNode;
+        if (parent) {
+          if (beforeText) {
+            parent.insertBefore(document.createTextNode(beforeText), node);
+          }
+          parent.insertBefore(mark, node);
+          if (afterText) {
+            parent.insertBefore(document.createTextNode(afterText), node);
+          }
+          parent.removeChild(node);
+          attachHoldToRemoveListener(mark);
+          createdMarks.push(mark);
+        }
+      });
+
+      return createdMarks;
+    }
+
+    function executeHighlight() {
+      let targetRange = null;
+      const currentSel = window.getSelection();
+      if (currentSel && currentSel.rangeCount > 0 && !currentSel.isCollapsed) {
+        targetRange = currentSel.getRangeAt(0);
+      } else if (activeRange) {
+        targetRange = activeRange;
+      }
+
+      if (!targetRange || !activeSnippet || !activeTopicId || !activeConceptNum) {
+        hideFloatingBtn();
+        return;
+      }
+
+      const topicId = activeTopicId;
+      const conceptNum = activeConceptNum;
+      const cleanSnippet = activeSnippet.replace(/\s+/g, ' ').trim();
+      if (cleanSnippet.length < 2) {
+        hideFloatingBtn();
+        return;
+      }
+
+      const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+
+      // Clean unwrap any existing marks touching this range to avoid nested marks
+      const allConceptMarks = Array.from(contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`));
+      allConceptMarks.forEach(m => {
+        try {
+          if (targetRange.intersectsNode(m)) {
+            const parent = m.parentNode;
+            if (parent) {
+              while (m.firstChild) {
+                parent.insertBefore(m.firstChild, m);
+              }
+              parent.removeChild(m);
+            }
+          }
+        } catch(e) {}
+      });
+
+      // 1. Immediately highlight every character in the selection
+      highlightRange(targetRange, topicId, conceptNum, cleanSnippet);
+
+      // 2. Persist to localStorage with anti-stacking / duplicate replacement
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      } catch (err) {
+        list = [];
+      }
+
+      // Remove any existing snippet that matches or overlaps/is contained within cleanSnippet
+      list = list.filter(s => {
+        const norm = (s || '').replace(/\s+/g, ' ').trim();
+        if (!norm) return false;
+        if (norm === cleanSnippet) return false;
+        if (cleanSnippet.length > 8 && norm.length > 8) {
+          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) return false;
+        }
+        return true;
+      });
+
+      list.push(cleanSnippet);
+      localStorage.setItem(storageKey, JSON.stringify(list));
+
+      // 3. Persist to Firestore
+      if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+        window.StageGateSync.saveHighlights(storageKey, list);
+      }
+
+      if (window.getSelection()) {
+        try { window.getSelection().removeAllRanges(); } catch (err) {}
+      }
+      activeRange = null;
+      activeSnippet = null;
+      hideFloatingBtn();
+
+      if (typeof window.updateHardRevisionBadges === 'function') {
+        window.updateHardRevisionBadges();
+      }
+      if (window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
+        window.loadHardRevision(false);
+      }
+    }
+
+    if (triggerHighlightBtn) {
+      function onHighlightTrigger(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        executeHighlight();
+      }
+      triggerHighlightBtn.addEventListener('pointerdown', onHighlightTrigger);
+      triggerHighlightBtn.addEventListener('click', onHighlightTrigger);
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+      if (highlightFloatingBtn && !highlightFloatingBtn.contains(e.target)) {
+        hideFloatingBtn();
+      }
+    });
+
+    window.addEventListener('scroll', () => {
+      hideFloatingBtn();
+    }, { passive: true });
+
+    function attachHoldToRemoveListener(mark) {
+      let holdTimer = null;
+      let isHolding = false;
+      let hasHoldTriggeredRemoval = false;
+      let startX = 0;
+      let startY = 0;
+      const HOLD_TIME_MS = 1000; // Strictly 1 second
+
+      // Block context menu on the highlight
+      mark.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      function startHold(e) {
+        if (isHolding) return;
+        if (e.button && e.button !== 0) return; // Only primary button / touch
+
+        isHolding = true;
+        isHoldingHighlight = true;
+        hasHoldTriggeredRemoval = false;
+
+        if (e.touches && e.touches.length > 0) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        } else {
+          startX = e.clientX || 0;
+          startY = e.clientY || 0;
+        }
+
+        const topicId = mark.getAttribute('data-topic');
+        const conceptNum = parseInt(mark.getAttribute('data-concept'));
+        const snippet = mark.getAttribute('data-snippet');
+
+        // Dim the entire snippet highlight together as a single visual unit
+        const allMatchingMarks = getMarksForSnippet(conceptNum, snippet);
+        allMatchingMarks.forEach(m => m.classList.add('holding'));
+
+        holdTimer = setTimeout(() => {
+          isHolding = false;
+          isHoldingHighlight = false;
+          hasHoldTriggeredRemoval = true;
+
+          if (navigator.vibrate) {
+            try { navigator.vibrate([35, 45]); } catch (err) {}
+          }
+
+          removeSnippet(topicId, conceptNum, snippet);
+          hideFloatingBtn();
+        }, HOLD_TIME_MS);
+      }
+
+      function cancelHold(e) {
+        if (!isHolding) return;
+        isHolding = false;
+        isHoldingHighlight = false;
+
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+
+        const snippet = mark.getAttribute('data-snippet');
+        const conceptNum = parseInt(mark.getAttribute('data-concept'));
+        const allMatchingMarks = getMarksForSnippet(conceptNum, snippet);
+        allMatchingMarks.forEach(m => m.classList.remove('holding'));
+      }
+
+      function checkMove(e) {
+        if (!isHolding) return;
+        const curX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+        const curY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+        const dist = Math.hypot(curX - startX, curY - startY);
+        if (dist > 16) {
+          cancelHold(e);
+        }
+      }
+
+      // Touch events
+      mark.addEventListener('touchstart', startHold, { passive: true });
+      mark.addEventListener('touchmove', checkMove, { passive: true });
+      mark.addEventListener('touchend', cancelHold, { passive: true });
+      mark.addEventListener('touchcancel', cancelHold, { passive: true });
+
+      // Pointer events for desktop mouse / pen
+      mark.addEventListener('pointerdown', startHold);
+      mark.addEventListener('pointermove', checkMove);
+      mark.addEventListener('pointerup', cancelHold);
+      mark.addEventListener('pointercancel', cancelHold);
+    }
+
+    function findRangeForSnippet(conceptH2, snippet) {
+      let nextH2 = null;
+      const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+      const idx = h2Elements.indexOf(conceptH2);
+      if (idx !== -1 && idx + 1 < h2Elements.length) {
+        nextH2 = h2Elements[idx + 1];
+      }
+
+      const textNodes = [];
+      let curr = conceptH2.nextSibling;
+      while (curr && curr !== nextH2) {
+        if (curr.nodeType === Node.ELEMENT_NODE) {
+          const walker = document.createTreeWalker(curr, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            const tn = walker.currentNode;
+            if (tn.parentElement && (
+              tn.parentElement.closest('.copy-code-btn') || 
+              tn.parentElement.closest('.summary-chevron') || 
+              tn.parentElement.closest('.examples-close-btn') || 
+              tn.parentElement.closest('.concept-mastery-btn') || 
+              tn.parentElement.closest('.exam-focus-highlight')
+            )) {
+              continue;
+            }
+            textNodes.push(tn);
+          }
+        }
+        curr = curr.nextSibling;
+      }
+
+      let fullText = '';
+      const nodeMap = [];
+      textNodes.forEach(node => {
+        const start = fullText.length;
+        fullText += node.nodeValue;
+        const end = fullText.length;
+        nodeMap.push({ node, start, end });
+      });
+
+      let matchIdx = fullText.indexOf(snippet);
+      let matchLen = snippet.length;
+
+      if (matchIdx === -1) {
+        const cleanFull = fullText.replace(/\s+/g, ' ');
+        const cleanSnippet = snippet.replace(/\s+/g, ' ').trim();
+        const cleanIdx = cleanFull.indexOf(cleanSnippet);
+        if (cleanIdx !== -1) {
+          let nonWsBefore = 0;
+          for (let i = 0; i < cleanIdx; i++) {
+            if (!/\s/.test(cleanFull[i])) nonWsBefore++;
+          }
+          let nonWsInSnippet = 0;
+          for (let i = 0; i < cleanSnippet.length; i++) {
+            if (!/\s/.test(cleanSnippet[i])) nonWsInSnippet++;
+          }
+
+          let startMatched = false;
+          let nonWsSeen = 0;
+          let nonWsInMatch = 0;
+
+          for (let i = 0; i < fullText.length; i++) {
+            const isNonWs = !/\s/.test(fullText[i]);
+            if (isNonWs) {
+              if (nonWsSeen === nonWsBefore && !startMatched) {
+                matchIdx = i;
+                startMatched = true;
+              }
+              if (startMatched) {
+                nonWsInMatch++;
+                if (nonWsInMatch === nonWsInSnippet) {
+                  matchLen = (i + 1) - matchIdx;
+                  break;
+                }
+              }
+              nonWsSeen++;
+            }
+          }
+        }
+      }
+
+      if (matchIdx === -1) return null;
+      const targetEnd = matchIdx + matchLen;
+      let startNode = null, startOffset = 0;
+      let endNode = null, endOffset = 0;
+
+      for (let i = 0; i < nodeMap.length; i++) {
+        const item = nodeMap[i];
+        if (!startNode && matchIdx >= item.start && matchIdx < item.end) {
+          startNode = item.node;
+          startOffset = matchIdx - item.start;
+        }
+        if (targetEnd > item.start && targetEnd <= item.end) {
+          endNode = item.node;
+          endOffset = targetEnd - item.start;
+          break;
+        }
+      }
+
+      if (startNode && endNode) {
+        try {
+          const range = document.createRange();
+          range.setStart(startNode, startOffset);
+          range.setEnd(endNode, endOffset);
+          return range;
+        } catch(e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    function applyAllConceptHighlights(topicId) {
+      const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+      h2Elements.forEach((h2) => {
+        const match = h2.textContent.match(/^(\d+)\./);
+        if (!match) return;
+        const conceptNum = parseInt(match[1]);
+        const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+
+        let highlights = [];
+        try {
+          highlights = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch (e) {
+          highlights = [];
+        }
+        if (!Array.isArray(highlights) || highlights.length === 0) return;
+
+        // Deduplicate before applying
+        const cleanHighlights = [];
+        highlights.forEach(h => {
+          const norm = (h || '').replace(/\s+/g, ' ').trim();
+          if (norm.length >= 2 && !cleanHighlights.includes(norm)) {
+            cleanHighlights.push(norm);
+          }
+        });
+
+        cleanHighlights.forEach((snippet) => {
+          const range = findRangeForSnippet(h2, snippet);
+          if (range) {
+            const marks = highlightRange(range, topicId, conceptNum, snippet);
+            // If the highlight is inside a <details class="concept-examples">, ensure it is open so it's immediately visible!
+            marks.forEach(m => {
+              const details = m.closest('details.concept-examples');
+              if (details) {
+                details.open = true;
+              }
+            });
+          }
+        });
+      });
+    }
+
+    function clearConceptHighlights(topicId, conceptNum) {
+      const highlightKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+      localStorage.removeItem(highlightKey);
+      if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+        window.StageGateSync.saveHighlights(highlightKey, []);
+      }
+      const marks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
+      marks.forEach((m) => {
+        const parent = m.parentNode;
+        if (parent) {
+          while (m.firstChild) {
+            parent.insertBefore(m.firstChild, m);
+          }
+          parent.removeChild(m);
+        }
+      });
+
+      if (typeof window.updateHardRevisionBadges === 'function') {
+        window.updateHardRevisionBadges();
+      }
+      if (window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
+        window.loadHardRevision(false);
+      }
+    }
+
+    window.refreshCurrentTopicHighlights = function() {
+      if (topics[currentTopicIndex]) {
+        applyAllConceptHighlights(topics[currentTopicIndex].id);
+      }
+    };
+
+    /* --- Dedicated Hard Revision Mode --- */
+    window.isHardRevisionActive = false;
+
+    function getAllHighlightsData() {
+      const result = [];
+      let totalCount = 0;
+
+      topics.forEach((topic, topicIdx) => {
+        const conceptsMap = [];
+        const lines = topic.content.split('\n');
+        lines.forEach(line => {
+          const m = line.match(/^##\s*(\d+)\.\s*(.*)/);
+          if (m) {
+            conceptsMap.push({
+              num: parseInt(m[1]),
+              title: m[2].trim()
+            });
+          }
+        });
+
+        const topicConcepts = [];
+
+        conceptsMap.forEach(c => {
+          const storageKey = `stage_gate_highlights_${topic.id}_${c.num}`;
+          let list = [];
+          try {
+            list = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          } catch (e) {
+            list = [];
+          }
+          if (Array.isArray(list) && list.length > 0) {
+            // Preserve every distinct highlight, only filtering exact duplicates
+            const cleanList = [];
+            list.forEach(raw => {
+              const item = (raw || '').trim();
+              if (item.length >= 2) {
+                const normItem = item.replace(/\s+/g, ' ');
+                const exists = cleanList.some(existing => existing.replace(/\s+/g, ' ') === normItem);
+                if (!exists) {
+                  cleanList.push(item);
+                }
+              }
+            });
+
+            if (cleanList.length !== list.length) {
+              localStorage.setItem(storageKey, JSON.stringify(cleanList));
+              if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+                window.StageGateSync.saveHighlights(storageKey, cleanList);
+              }
+            }
+
+            if (cleanList.length > 0) {
+              totalCount += 1; // Count unique concepts, not individual paragraphs!
+              topicConcepts.push({
+                conceptNum: c.num,
+                conceptTitle: `${c.num}. ${c.title}`,
+                snippets: cleanList,
+                storageKey: storageKey
+              });
+            }
+          }
+        });
+
+        if (topicConcepts.length > 0) {
+          result.push({
+            topicId: topic.id,
+            topicIndex: topicIdx,
+            topicTitle: topic.title,
+            concepts: topicConcepts
+          });
+        }
+      });
+
+      return { topics: result, totalCount: totalCount };
+    }
+
+    window.updateHardRevisionBadges = function() {
+      const data = getAllHighlightsData();
+      const headerCount = document.getElementById('headerRevisionCount');
+      const sidebarCount = document.getElementById('sidebarRevisionCount');
+      if (headerCount) headerCount.textContent = data.totalCount;
+      if (sidebarCount) sidebarCount.textContent = data.totalCount;
+      return data;
+    };
+
+    function showRevisionReturnButton(jumpContext) {
+      let pill = document.getElementById('revisionReturnPill');
+      if (!pill) {
+        pill = document.createElement('div');
+        pill.id = 'revisionReturnPill';
+        pill.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-50 flex items-center gap-2 p-1.5 pl-3.5 pr-2 rounded-full bg-zinc-900/95 border border-emerald-500/50 shadow-2xl shadow-emerald-950/40 backdrop-blur-md transition-all duration-300';
+        document.body.appendChild(pill);
+      }
+
+      pill.innerHTML = `
+        <button type="button" id="returnToRevisionActionBtn" class="flex items-center gap-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer">
+          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7 7-7-7 7-7"/></svg>
+          <span class="text-zinc-100">Return to Hard Revision</span>
+        </button>
+        <span class="w-px h-3.5 bg-zinc-700"></span>
+        <button type="button" id="dismissRevisionReturnBtn" class="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer" title="Dismiss return button">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      `;
+
+      pill.classList.remove('hidden');
+
+      const actionBtn = pill.querySelector('#returnToRevisionActionBtn');
+      if (actionBtn) {
+        actionBtn.onclick = (e) => {
+          e.preventDefault();
+          returnToHardRevisionLocation();
+        };
+      }
+
+      const dismissBtn = pill.querySelector('#dismissRevisionReturnBtn');
+      if (dismissBtn) {
+        dismissBtn.onclick = (e) => {
+          e.preventDefault();
+          hideRevisionReturnButton();
+          window.lastRevisionJump = null;
+        };
+      }
+    }
+
+    function hideRevisionReturnButton() {
+      const pill = document.getElementById('revisionReturnPill');
+      if (pill) {
+        pill.classList.add('hidden');
+      }
+    }
+
+    function returnToHardRevisionLocation() {
+      const jump = window.lastRevisionJump;
+      hideRevisionReturnButton();
+      if (jump) {
+        loadHardRevision(false, jump.cardId, jump.scrollY);
+        window.lastRevisionJump = null;
+      } else {
+        loadHardRevision(true);
+      }
+    }
+
+    function jumpToConcept(topicIndex, conceptNum, jumpContext = null) {
+      if (jumpContext) {
+        window.lastRevisionJump = jumpContext;
+      }
+      loadTopic(topicIndex, true);
+      closeSidebar();
+
+      if (window.lastRevisionJump) {
+        showRevisionReturnButton(window.lastRevisionJump);
+      }
+
+      setTimeout(() => {
+        const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+        for (const h2 of h2Elements) {
+          const match = h2.textContent.match(/^(\d+)\./);
+          if (match && parseInt(match[1]) === conceptNum) {
+            h2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            h2.classList.add('transition-all', 'duration-500', 'ring-2', 'ring-emerald-400', 'ring-offset-4', 'ring-offset-black', 'rounded-lg');
+            
+            // Add inline return button right under the concept heading
+            const existingBanner = contentContainer.querySelector('.concept-return-banner');
+            if (existingBanner) existingBanner.remove();
+
+            const banner = document.createElement('div');
+            banner.className = 'concept-return-banner my-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 animate-in fade-in duration-300';
+            banner.innerHTML = `
+              <button type="button" class="flex items-center gap-1.5 font-semibold hover:text-emerald-300 transition cursor-pointer">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7 7-7-7 7-7"/></svg>
+                <span>Return to Hard Revision Snippet</span>
+              </button>
+            `;
+            banner.querySelector('button').onclick = (e) => {
+              e.preventDefault();
+              returnToHardRevisionLocation();
+            };
+            h2.insertAdjacentElement('afterend', banner);
+
+            setTimeout(() => {
+              h2.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-4', 'ring-offset-black');
+            }, 2500);
+            break;
+          }
+        }
+      }, 120);
+    }
+
+    function removeSnippetFromRevisionSheet(topicId, conceptNum, snippet, btn) {
+      // 1. Remove from storage & sync WITHOUT triggering full re-render
+      removeSnippet(topicId, conceptNum, snippet, false);
+
+      const card = btn ? btn.closest('.snippet-card') : null;
+      if (!card) {
+        loadHardRevision(false);
+        return;
+      }
+
+      // 2. Animate out the card smoothly in DOM without touching page scroll
+      card.style.transition = 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.22s ease, margin 0.22s ease, padding 0.22s ease';
+      card.style.maxHeight = `${card.offsetHeight}px`;
+      card.style.overflow = 'hidden';
+
+      requestAnimationFrame(() => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(16px)';
+        card.style.maxHeight = '0px';
+        card.style.paddingTop = '0px';
+        card.style.paddingBottom = '0px';
+        card.style.marginTop = '0px';
+        card.style.marginBottom = '0px';
+      });
+
+      setTimeout(() => {
+        const snippetList = card.closest('.snippet-list');
+        const conceptBlock = card.closest('.concept-block');
+        const topicCard = card.closest('.topic-card');
+
+        card.remove();
+
+        // If no more snippets in this concept, prune concept block
+        if (snippetList && snippetList.querySelectorAll('.snippet-card').length === 0) {
+          if (conceptBlock) conceptBlock.remove();
+        }
+
+        // If no more concepts in this topic, prune topic card
+        if (topicCard) {
+          const remainingConcepts = topicCard.querySelectorAll('.concept-block');
+          if (remainingConcepts.length === 0) {
+            topicCard.remove();
+          }
+        }
+
+        // If no cards left across the entire sheet, render the empty state without scrolling to top
+        const remainingCards = contentContainer.querySelectorAll('.snippet-card');
+        if (remainingCards.length === 0) {
+          loadHardRevision(false);
+        }
+      }, 230);
+    }
+
+    function renderRevisionSnippetContent(snippet, topicId, conceptNum) {
+      if (!snippet) return { isTable: false, html: '' };
+
+      function toAlpha(str) {
+        return (str || '')
+          .split('\n')
+          .filter(l => !/^\s*\|?\s*:?-+:?\s*\|/.test(l))
+          .join(' ')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      const snippetAlpha = toAlpha(snippet);
+      const topic = topics.find(t => t.id === topicId);
+
+      if (topic && topic.content && snippetAlpha) {
+        // Extract concept markdown lines
+        const lines = topic.content.split('\n');
+        let inConcept = false;
+        const conceptLines = [];
+        for (const line of lines) {
+          const m = line.match(/^##\s*(\d+)\.\s*(.*)/);
+          if (m) {
+            if (parseInt(m[1]) === conceptNum) {
+              inConcept = true;
+            } else if (inConcept) {
+              break;
+            }
+          } else if (inConcept) {
+            conceptLines.push(line);
+          }
+        }
+
+        // 1. Check for markdown tables in concept
+        const tables = [];
+        let curTableLines = [];
+        for (const l of conceptLines) {
+          if (l.trim().startsWith('|')) {
+            curTableLines.push(l.trim());
+          } else if (curTableLines.length > 0) {
+            tables.push(curTableLines);
+            curTableLines = [];
+          }
+        }
+        if (curTableLines.length > 0) {
+          tables.push(curTableLines);
+        }
+
+        for (const tbl of tables) {
+          const headerLines = tbl.slice(0, 2);
+          const dataRows = tbl.slice(2);
+          const fullTableAlpha = toAlpha(tbl.join('\n'));
+
+          // Check if snippet matches full table
+          if (snippetAlpha === fullTableAlpha || 
+              snippetAlpha.includes(fullTableAlpha) || 
+              (fullTableAlpha.includes(snippetAlpha) && snippetAlpha.length > fullTableAlpha.length * 0.6)) {
+            return {
+              isTable: true,
+              html: `<div class="markdown-body w-full">${marked.parse(tbl.join('\n'))}</div>`
+            };
+          }
+
+          // Check if snippet matches a subset of table rows
+          const matchingRows = dataRows.filter(row => {
+            const rowAlpha = toAlpha(row);
+            return rowAlpha && (snippetAlpha.includes(rowAlpha) || rowAlpha.includes(snippetAlpha));
+          });
+
+          if (matchingRows.length > 0 && matchingRows.length >= dataRows.length * 0.3) {
+            const subTableMd = [...headerLines, ...matchingRows].join('\n');
+            return {
+              isTable: true,
+              html: `<div class="markdown-body w-full">${marked.parse(subTableMd)}</div>`
+            };
+          }
+        }
+
+        // 2. Check for matching lines/paragraphs in concept (supports multi-line & multi-paragraph selections!)
+        let startIdx = -1;
+        let endIdx = -1;
+
+        for (let i = 0; i < conceptLines.length; i++) {
+          const l = conceptLines[i].trim();
+          if (!l || l.startsWith('|')) continue;
+          const lAlpha = toAlpha(l);
+          if (!lAlpha) continue;
+
+          // Check if this line is part of the selection or the selection is part of this line
+          if (snippetAlpha.includes(lAlpha) || lAlpha.includes(snippetAlpha)) {
+            if (startIdx === -1) startIdx = i;
+            endIdx = i;
+          }
+        }
+
+        if (startIdx !== -1 && endIdx !== -1) {
+          const matchedMd = conceptLines.slice(startIdx, endIdx + 1).join('\n').trim();
+          if (matchedMd) {
+            return {
+              isTable: false,
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+            };
+          }
+        }
+      }
+
+      return {
+        isTable: false,
+        html: `<div class="text-xs text-white font-normal leading-relaxed whitespace-pre-wrap">${escapeHtml(snippet)}</div>`
+      };
+    }
+
+    window.loadHardRevision = function(shouldScroll = true, targetCardId = null, fallbackScrollY = null) {
+      window.isHardRevisionActive = true;
+      hideRevisionReturnButton();
+      const prevScrollY = window.scrollY;
+      try {
+        localStorage.setItem('stage_gate_active_view', 'hard-revision');
+        if (history.replaceState) {
+          history.replaceState(null, '', '#hard-revision');
+        } else {
+          location.hash = 'hard-revision';
+        }
+      } catch (e) {}
+      const data = getAllHighlightsData();
+
+      topicBadge.classList.add('hidden');
+      currentTopicTitle.textContent = 'Hard Revision Sheet';
+      const copySpan = copyAllBtn.querySelector('span');
+      if (copySpan) copySpan.textContent = 'Copy Revision';
+
+      renderNav(); // Updates active styles in sidebar
+
+      if (data.totalCount === 0) {
+        contentContainer.innerHTML = `
+          <div class="py-12 px-4 text-center rounded-2xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col items-center justify-center my-6">
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 shadow-lg shadow-emerald-500/10">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 11-6 6v3h3l6-6"/>
+                <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L15 4"/>
+              </svg>
+            </div>
+            <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">Your Hard Revision Sheet is Empty</h3>
+            <p class="text-xs sm:text-sm text-zinc-400 max-w-md mt-2 leading-relaxed">
+              While reading any of the 15 topics, select tricky traps, exceptions, or clauses and click <span class="text-emerald-400 font-semibold">Highlight</span>. They will automatically gather here for high-speed pre-exam revision without doom scrolling!
+            </p>
+            <button onclick="loadTopic(0)" class="mt-6 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold transition cursor-pointer shadow-lg shadow-emerald-500/20">
+              Start with Topic 1: SELECT Statement →
+            </button>
+          </div>
+        `;
+      } else {
+        let html = `
+          <div class="space-y-6 pt-1">
+        `;
+
+        data.topics.forEach(t => {
+          html += `
+            <div class="topic-card bg-zinc-950/70 border border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+              <div class="px-4 py-3 bg-zinc-900/90 border-b border-zinc-800 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                  <span class="text-xs font-bold text-white uppercase tracking-wider truncate">${escapeHtml(t.topicTitle)}</span>
+                </div>
+                <button onclick="loadTopic(${t.topicIndex})" class="shrink-0 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer">
+                  <span>Open Topic</span>
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                </button>
+              </div>
+
+              <div class="p-3 sm:p-4 space-y-4 topic-concepts-list">
+          `;
+
+          t.concepts.forEach(c => {
+            html += `
+              <div class="space-y-2 concept-block">
+                <div class="flex items-center justify-between gap-2 pb-1 border-b border-zinc-900">
+                  <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 truncate">
+                    <span class="text-zinc-500 font-mono font-normal">#</span>
+                    <span class="truncate">${escapeHtml(c.conceptTitle)}</span>
+                  </h3>
+                </div>
+
+                <div class="space-y-2 snippet-list">
+            `;
+
+            c.snippets.forEach((s, sIdx) => {
+              const cardId = `rev-card-${t.topicId}-${c.conceptNum}-${sIdx}`;
+              const rendered = renderRevisionSnippetContent(s, t.topicId, c.conceptNum);
+              if (rendered.isTable) {
+                html += `
+                  <div id="${cardId}" data-card-id="${cardId}" class="snippet-card group relative p-3 sm:p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800/90 transition-all flex flex-col justify-between gap-2.5 overflow-hidden">
+                    <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-zinc-800/60">
+                      <span class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                        <span>Comparison Table</span>
+                      </span>
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" class="jump-to-concept-btn px-2 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition cursor-pointer flex items-center gap-1" data-topic-index="${t.topicIndex}" data-concept="${c.conceptNum}" data-card-id="${cardId}">
+                          <span>Context</span>
+                        </button>
+                        <button type="button" class="remove-revision-snippet-btn px-2 py-1 rounded-md bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-transparent hover:border-red-500/30 text-[11px] font-medium transition cursor-pointer flex items-center gap-1" data-topic="${escapeHtml(t.topicId)}" data-concept="${c.conceptNum}" data-snippet="${escapeHtml(s)}">
+                          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="w-full overflow-x-auto">
+                      ${rendered.html}
+                    </div>
+                  </div>
+                `;
+              } else {
+                html += `
+                  <div id="${cardId}" data-card-id="${cardId}" class="snippet-card group relative p-3 sm:p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800/90 transition-all flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                      ${rendered.html}
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-start pt-1 sm:pt-0">
+                      <button type="button" class="jump-to-concept-btn px-2 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition cursor-pointer flex items-center gap-1" data-topic-index="${t.topicIndex}" data-concept="${c.conceptNum}" data-card-id="${cardId}">
+                        <span>Context</span>
+                      </button>
+                      <button type="button" class="remove-revision-snippet-btn px-2 py-1 rounded-md bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-transparent hover:border-red-500/30 text-[11px] font-medium transition cursor-pointer flex items-center gap-1" data-topic="${escapeHtml(t.topicId)}" data-concept="${c.conceptNum}" data-snippet="${escapeHtml(s)}">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }
+            });
+
+            html += `
+                </div>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        });
+
+        html += `</div>`;
+        contentContainer.innerHTML = html;
+      }
+
+      // Attach button event listeners
+      contentContainer.querySelectorAll('.jump-to-concept-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const topicIndex = parseInt(btn.getAttribute('data-topic-index'));
+          const conceptNum = parseInt(btn.getAttribute('data-concept'));
+          const cardId = btn.getAttribute('data-card-id');
+          jumpToConcept(topicIndex, conceptNum, {
+            scrollY: window.scrollY,
+            cardId: cardId,
+            topicIndex: topicIndex,
+            conceptNum: conceptNum
+          });
+        });
+      });
+
+      contentContainer.querySelectorAll('.remove-revision-snippet-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const topicId = btn.getAttribute('data-topic');
+          const conceptNum = parseInt(btn.getAttribute('data-concept'));
+          const snippet = btn.getAttribute('data-snippet');
+          removeSnippetFromRevisionSheet(topicId, conceptNum, snippet, btn);
+        });
+      });
+
+      // Update footer
+      const topicNavFooter = document.getElementById('topicNavFooter');
+      if (topicNavFooter) {
+        const backIdx = (typeof currentTopicIndex === 'number' && currentTopicIndex >= 0 && currentTopicIndex < topics.length) ? currentTopicIndex : 0;
+        topicNavFooter.innerHTML = `
+          <button onclick="loadTopic(${backIdx})" class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7 7-7-7 7-7"/></svg>
+            <span>Back to Topic Notes</span>
+          </button>
+          <span class="text-xs text-zinc-500 font-mono">Live Focus Sync Enabled</span>
+        `;
+      }
+
+      if (targetCardId) {
+        setTimeout(() => {
+          const targetCard = document.getElementById(targetCardId);
+          if (targetCard) {
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetCard.classList.add('transition-all', 'duration-500', 'ring-2', 'ring-emerald-400', 'ring-offset-4', 'ring-offset-black');
+            setTimeout(() => {
+              targetCard.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-4', 'ring-offset-black');
+            }, 2500);
+          } else if (typeof fallbackScrollY === 'number') {
+            window.scrollTo({ top: fallbackScrollY, behavior: 'smooth' });
+          }
+        }, 60);
+      } else if (shouldScroll) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: prevScrollY, behavior: 'instant' });
+      }
+    };
+
+    const headerHardRevisionBtn = document.getElementById('headerHardRevisionBtn');
+    const sidebarHardRevisionBtn = document.getElementById('sidebarHardRevisionBtn');
+
+    if (headerHardRevisionBtn) {
+      headerHardRevisionBtn.addEventListener('click', () => {
+        if (window.lastRevisionJump) {
+          returnToHardRevisionLocation();
+        } else {
+          loadHardRevision(true);
+        }
+      });
+    }
+    if (sidebarHardRevisionBtn) {
+      sidebarHardRevisionBtn.addEventListener('click', () => {
+        if (window.lastRevisionJump) {
+          returnToHardRevisionLocation();
+        } else {
+          loadHardRevision(true);
+        }
+        closeSidebar();
+      });
+    }
+
+    // Restore active view (Topic or Hard Revision) across page reloads
+    function restoreInitialView() {
+      renderNav();
+      updateHardRevisionBadges();
+
+      const hash = (location.hash || '').replace(/^#/, '').trim();
+      let restored = false;
+
+      if (hash === 'hard-revision') {
+        loadHardRevision(true);
+        restored = true;
+      } else if (hash) {
+        const foundIdx = topics.findIndex(t => t.id === hash || ('topic-' + t.id) === hash);
+        if (foundIdx !== -1) {
+          loadTopic(foundIdx);
+          restored = true;
+        }
+      }
+
+      if (!restored) {
+        const savedView = localStorage.getItem('stage_gate_active_view');
+        if (savedView === 'hard-revision') {
+          loadHardRevision(true);
+          restored = true;
+        } else if (savedView !== null) {
+          const idx = parseInt(savedView, 10);
+          if (!isNaN(idx) && idx >= 0 && idx < topics.length) {
+            loadTopic(idx);
+            restored = true;
+          }
+        }
+      }
+
+      if (!restored) {
+        loadTopic(0);
+      }
+
+      lucide.createIcons();
+    }
+
+    restoreInitialView();
+
+    window.addEventListener('hashchange', () => {
+      const hash = (location.hash || '').replace(/^#/, '').trim();
+      if (hash === 'hard-revision') {
+        if (!window.isHardRevisionActive) loadHardRevision(true);
+      } else if (hash) {
+        const foundIdx = topics.findIndex(t => t.id === hash);
+        if (foundIdx !== -1 && (window.isHardRevisionActive || currentTopicIndex !== foundIdx)) {
+          loadTopic(foundIdx);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
