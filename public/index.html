@@ -838,7 +838,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795187310912"></script>
+  <script src="topics-data.js?v=1795187713289"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1277,10 +1277,59 @@
     let activeSnippet = null;
     let activeTopicId = null;
     let activeConceptNum = null;
+    let floatingBtnMode = 'highlight'; // 'highlight' | 'remove'
+    let activeRemoveTarget = null; // { topicId, conceptNum, snippet, mark }
+
+    function showFloatingBtnAtRect(rect) {
+      if (!highlightFloatingBtn || !rect) return;
+      const top = rect.top < 65 ? (rect.bottom + 10) : (rect.top - 46);
+      const left = Math.max(75, Math.min(window.innerWidth - 75, rect.left + rect.width / 2));
+      highlightFloatingBtn.style.top = `${top}px`;
+      highlightFloatingBtn.style.left = `${left}px`;
+      highlightFloatingBtn.classList.remove('hidden');
+    }
+
+    function setFloatingBtnToHighlightMode() {
+      floatingBtnMode = 'highlight';
+      activeRemoveTarget = null;
+      if (!triggerHighlightBtn || isSavingHighlight) return;
+      triggerHighlightBtn.disabled = false;
+      triggerHighlightBtn.style.pointerEvents = 'auto';
+      triggerHighlightBtn.style.backgroundColor = '#10b981';
+      triggerHighlightBtn.style.borderColor = '#34d399';
+      triggerHighlightBtn.style.boxShadow = '0 4px 18px rgba(16, 185, 129, 0.45)';
+      triggerHighlightBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 11-6 6v3h3l6-6"/>
+          <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L15 4"/>
+        </svg>
+        <span class="text-black font-semibold">Highlight</span>
+      `;
+    }
+
+    function setFloatingBtnToRemoveMode(topicId, conceptNum, snippet, mark) {
+      floatingBtnMode = 'remove';
+      activeRemoveTarget = { topicId, conceptNum, snippet, mark };
+      if (!triggerHighlightBtn || isSavingHighlight) return;
+      triggerHighlightBtn.disabled = false;
+      triggerHighlightBtn.style.pointerEvents = 'auto';
+      triggerHighlightBtn.style.backgroundColor = '#be123c';
+      triggerHighlightBtn.style.borderColor = '#fda4af';
+      triggerHighlightBtn.style.boxShadow = '0 4px 18px rgba(190, 18, 60, 0.45)';
+      triggerHighlightBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+        <span class="text-white font-semibold">Remove</span>
+      `;
+    }
 
     function hideFloatingBtn() {
       if (highlightFloatingBtn && !highlightFloatingBtn.classList.contains('hidden')) {
         highlightFloatingBtn.classList.add('hidden');
+      }
+      if (!isSavingHighlight) {
+        setFloatingBtnToHighlightMode();
       }
     }
 
@@ -1426,15 +1475,22 @@
       activeTopicId = topicId;
       activeConceptNum = conceptNum;
 
-      const rect = range.getBoundingClientRect();
-      const top = rect.top < 65 ? (rect.bottom + 10) : (rect.top - 46);
-      const left = Math.max(75, Math.min(window.innerWidth - 75, rect.left + rect.width / 2));
+      const existingMark = startNode.closest('.exam-focus-highlight') || 
+        (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? 
+          range.commonAncestorContainer.closest('.exam-focus-highlight') : 
+          range.commonAncestorContainer.parentElement ? range.commonAncestorContainer.parentElement.closest('.exam-focus-highlight') : null);
 
-      if (highlightFloatingBtn) {
-        highlightFloatingBtn.style.top = `${top}px`;
-        highlightFloatingBtn.style.left = `${left}px`;
-        highlightFloatingBtn.classList.remove('hidden');
+      if (existingMark) {
+        const markTopic = existingMark.getAttribute('data-topic');
+        const markConcept = parseInt(existingMark.getAttribute('data-concept'));
+        const markSnippet = existingMark.getAttribute('data-snippet');
+        setFloatingBtnToRemoveMode(markTopic, markConcept, markSnippet, existingMark);
+      } else {
+        setFloatingBtnToHighlightMode();
       }
+
+      const rect = range.getBoundingClientRect();
+      showFloatingBtnAtRect(rect);
     }
 
     document.addEventListener('selectionchange', () => {
@@ -1729,26 +1785,95 @@
       }
       activeRange = null;
       activeSnippet = null;
+      setFloatingBtnToHighlightMode();
       hideFloatingBtn();
+    }
+
+    async function executeRemoveHighlight(topicId, conceptNum, snippet, mark) {
+      if (isSavingHighlight) return;
+
+      // Position the floating button directly over the mark at the exact same place!
+      if (mark) {
+        const rect = mark.getBoundingClientRect();
+        showFloatingBtnAtRect(rect);
+      }
+
+      // 1. Immediately switch button to visible Loading State: "Removing..."
+      isSavingHighlight = true;
+      setSyncStatus('saving', 'Removing highlight...');
+      if (triggerHighlightBtn) {
+        triggerHighlightBtn.disabled = true;
+        triggerHighlightBtn.style.pointerEvents = 'none';
+        triggerHighlightBtn.style.backgroundColor = '#be123c';
+        triggerHighlightBtn.style.borderColor = '#fda4af';
+        triggerHighlightBtn.style.boxShadow = '0 4px 18px rgba(190, 18, 60, 0.45)';
+        triggerHighlightBtn.innerHTML = `
+          <svg class="animate-spin w-3.5 h-3.5 text-white shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span class="text-white font-semibold">Removing...</span>
+        `;
+      }
+
+      // 2. Perform removal and cloud sync
+      await removeSnippet(topicId, conceptNum, snippet);
+
+      // 3. Show "Removed!" checkmark in the exact same place for 700ms (just like "Saved!")
+      if (triggerHighlightBtn) {
+        triggerHighlightBtn.style.backgroundColor = '#e11d48';
+        triggerHighlightBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 text-white shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span class="text-white font-bold">Removed!</span>
+        `;
+      }
+      setSyncStatus('saved', 'Removed & Synced!');
+
+      await new Promise(r => setTimeout(r, 700));
+
+      // 4. Reset button back to default Highlight state and hide
+      isSavingHighlight = false;
+      setFloatingBtnToHighlightMode();
+      hideFloatingBtn();
+      if (window.getSelection()) {
+        try { window.getSelection().removeAllRanges(); } catch (err) {}
+      }
+      activeRange = null;
+      activeSnippet = null;
+      activeRemoveTarget = null;
     }
 
     if (triggerHighlightBtn) {
       async function onHighlightTrigger(e) {
         e.preventDefault();
         e.stopPropagation();
-        await executeHighlight();
+        if (floatingBtnMode === 'remove' && activeRemoveTarget) {
+          await executeRemoveHighlight(
+            activeRemoveTarget.topicId,
+            activeRemoveTarget.conceptNum,
+            activeRemoveTarget.snippet,
+            activeRemoveTarget.mark
+          );
+        } else {
+          await executeHighlight();
+        }
       }
       triggerHighlightBtn.addEventListener('click', onHighlightTrigger);
     }
 
     document.addEventListener('pointerdown', (e) => {
+      if (isSavingHighlight) return;
       if (highlightFloatingBtn && !highlightFloatingBtn.contains(e.target)) {
         hideFloatingBtn();
       }
     });
 
     window.addEventListener('scroll', () => {
-      hideFloatingBtn();
+      if (!isSavingHighlight) {
+        hideFloatingBtn();
+      }
     }, { passive: true });
 
     function attachHoldToRemoveListener(mark) {
@@ -1798,8 +1923,8 @@
             try { navigator.vibrate([35, 45]); } catch (err) {}
           }
 
-          hideFloatingBtn();
-          await removeSnippet(topicId, conceptNum, snippet);
+          // Show Removing... -> Removed! in the EXACT SAME PLACE right above the highlight!
+          await executeRemoveHighlight(topicId, conceptNum, snippet, mark);
         }, HOLD_TIME_MS);
       }
 
@@ -1828,6 +1953,19 @@
           cancelHold(e);
         }
       }
+
+      // Tap on highlight to show floating Remove button right above it
+      mark.addEventListener('click', (e) => {
+        if (hasHoldTriggeredRemoval || isSavingHighlight) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const topicId = mark.getAttribute('data-topic');
+        const conceptNum = parseInt(mark.getAttribute('data-concept'));
+        const snippet = mark.getAttribute('data-snippet');
+        setFloatingBtnToRemoveMode(topicId, conceptNum, snippet, mark);
+        const rect = mark.getBoundingClientRect();
+        showFloatingBtnAtRect(rect);
+      });
 
       // Touch events
       mark.addEventListener('touchstart', startHold, { passive: true });
