@@ -620,10 +620,16 @@
           <span id="topicBadge" class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">TOPIC 1 OF 15</span>
           <h1 id="currentTopicTitle" class="text-xl sm:text-2xl font-extrabold text-white mt-1 truncate">SELECT Statement</h1>
         </div>
-        <button id="copyAllBtn" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-emerald-400 transition">
-          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">Copy Notes</span>
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="downloadRevisionBtn" type="button" title="Download all hard revision concepts into a single backup file" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="hidden sm:inline">Download Backup</span>
+          </button>
+          <button id="copyAllBtn" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 hover:text-emerald-400 transition cursor-pointer">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Copy Notes</span>
+          </button>
+        </div>
       </div>
 
       <!-- Markdown Body -->
@@ -762,7 +768,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795156035887"></script>
+  <script src="topics-data.js?v=1795159978190"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -798,6 +804,7 @@
     const mobileSearchToggle = document.getElementById('mobileSearchToggle');
     const mobileSearchBar = document.getElementById('mobileSearchBar');
     const copyAllBtn = document.getElementById('copyAllBtn');
+    const downloadRevisionBtn = document.getElementById('downloadRevisionBtn');
 
     function renderNav(filter = '') {
       topicsNav.innerHTML = '';
@@ -1032,6 +1039,10 @@
       } else {
         topicBadge.textContent = `TOPIC ${index} OF 15`;
       }
+      if (downloadRevisionBtn) {
+        downloadRevisionBtn.classList.add('hidden');
+        downloadRevisionBtn.classList.remove('flex');
+      }
       const copySpan = copyAllBtn.querySelector('span');
       if (copySpan) copySpan.textContent = 'Copy Notes';
 
@@ -1167,6 +1178,12 @@
         lucide.createIcons();
       }, 2000);
     };
+
+    if (downloadRevisionBtn) {
+      downloadRevisionBtn.onclick = () => {
+        window.triggerHardRevisionDownload();
+      };
+    }
 
     prevBtn.onclick = () => loadTopic(currentTopicIndex - 1);
     nextBtn.onclick = () => loadTopic(currentTopicIndex + 1);
@@ -2139,6 +2156,131 @@
       };
     }
 
+    window.generateHardRevisionBackupText = function() {
+      const data = getAllHighlightsData();
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+
+      let md = `# Stage Gate — Hard Revision Sheet Backup\n\n`;
+      md += `> **Export Date:** ${now.toLocaleString()}  \n`;
+      md += `> **Total Saved Concepts:** ${data.totalCount}  \n`;
+      md += `> **Purpose:** Deloitte Stage Gate Pre-Exam Review & Highlights Safety Backup\n\n`;
+      md += `---\n\n`;
+
+      const backupPayload = {};
+
+      data.topics.forEach(t => {
+        md += `## ${t.topicTitle}\n\n`;
+        t.concepts.forEach(c => {
+          md += `### ${c.conceptTitle}\n\n`;
+          backupPayload[c.storageKey] = c.snippets;
+          c.snippets.forEach(s => {
+            const trimmed = (s || '').trim();
+            if (trimmed.startsWith('|') || trimmed.includes('\n')) {
+              md += `${trimmed}\n\n`;
+            } else {
+              md += `> ${trimmed}\n\n`;
+            }
+          });
+        });
+        md += `---\n\n`;
+      });
+
+      md += `\n<!-- STAGE_GATE_BACKUP_METADATA\n${JSON.stringify({
+        version: 1,
+        exportedAt: now.toISOString(),
+        totalConcepts: data.totalCount,
+        keys: backupPayload
+      }, null, 2)}\n-->\n`;
+
+      return { text: md, dateStr: dateStr, count: data.totalCount };
+    };
+
+    window.triggerHardRevisionDownload = function() {
+      const data = getAllHighlightsData();
+      if (data.totalCount === 0) {
+        alert("Your Hard Revision Sheet is currently empty. Nothing to download!");
+        return;
+      }
+      const backup = window.generateHardRevisionBackupText();
+      const filename = `Stage_Gate_Hard_Revision_${backup.dateStr}.md`;
+      const blob = new Blob([backup.text], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      const btn = document.getElementById('downloadRevisionBtn');
+      if (btn) {
+        const origContent = btn.innerHTML;
+        btn.innerHTML = `
+          <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="hidden sm:inline text-emerald-400">Downloaded!</span>
+        `;
+        setTimeout(() => {
+          btn.innerHTML = origContent;
+        }, 2200);
+      }
+    };
+
+    window.restoreHardRevisionFromFile = function(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result || '';
+          let keysToSave = {};
+
+          const metaMatch = content.match(/<!--\s*STAGE_GATE_BACKUP_METADATA\s*([\s\S]*?)\s*-->/);
+          if (metaMatch && metaMatch[1]) {
+            try {
+              const parsed = JSON.parse(metaMatch[1]);
+              if (parsed && parsed.keys) {
+                keysToSave = parsed.keys;
+              }
+            } catch (err) {
+              console.warn('Metadata parse warning:', err);
+            }
+          }
+
+          if (Object.keys(keysToSave).length === 0) {
+            try {
+              const parsed = JSON.parse(content);
+              if (parsed && typeof parsed === 'object') {
+                keysToSave = parsed.keys || parsed;
+              }
+            } catch (err) {}
+          }
+
+          let restoredCount = 0;
+          for (const [key, snippets] of Object.entries(keysToSave)) {
+            if (key.startsWith('stage_gate_highlights_') && Array.isArray(snippets) && snippets.length > 0) {
+              localStorage.setItem(key, JSON.stringify(snippets));
+              if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+                window.StageGateSync.saveHighlights(key, snippets);
+              }
+              restoredCount++;
+            }
+          }
+
+          if (restoredCount > 0) {
+            alert(`Success! Restored ${restoredCount} concept highlight(s) into your Hard Revision sheet.`);
+            window.updateHardRevisionBadges();
+            window.loadHardRevision(false);
+          } else {
+            alert("No valid Stage Gate highlight backup data was found in this file.");
+          }
+        } catch (err) {
+          alert("Error processing backup file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+
     window.loadHardRevision = function(shouldScroll = true, targetCardId = null, fallbackScrollY = null) {
       window.isHardRevisionActive = true;
       hideRevisionReturnButton();
@@ -2155,6 +2297,10 @@
 
       topicBadge.classList.add('hidden');
       currentTopicTitle.textContent = 'Hard Revision Sheet';
+      if (downloadRevisionBtn) {
+        downloadRevisionBtn.classList.remove('hidden');
+        downloadRevisionBtn.classList.add('flex');
+      }
       const copySpan = copyAllBtn.querySelector('span');
       if (copySpan) copySpan.textContent = 'Copy Revision';
 
@@ -2173,14 +2319,41 @@
             <p class="text-xs sm:text-sm text-zinc-400 max-w-md mt-2 leading-relaxed">
               While reading any of the 15 topics, select tricky traps, exceptions, or clauses and click <span class="text-emerald-400 font-semibold">Highlight</span>. They will automatically gather here for high-speed pre-exam revision without doom scrolling!
             </p>
-            <button onclick="loadTopic(0)" class="mt-6 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold transition cursor-pointer shadow-lg shadow-emerald-500/20">
-              Start with Topic 1: SELECT Statement →
-            </button>
+            <div class="flex flex-wrap items-center justify-center gap-3 mt-6">
+              <button onclick="loadTopic(0)" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold transition cursor-pointer shadow-lg shadow-emerald-500/20">
+                Start with Topic 1: SELECT Statement →
+              </button>
+              <label class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-semibold transition cursor-pointer flex items-center gap-2" title="Restore highlights from a backup file">
+                <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Restore Backup File</span>
+                <input type="file" onchange="restoreHardRevisionFromFile(this.files[0])" accept=".md,.json,.txt" class="hidden" />
+              </label>
+            </div>
           </div>
         `;
       } else {
         let html = `
           <div class="space-y-6 pt-1">
+            <div class="p-3 sm:p-4 rounded-xl bg-zinc-900/80 border border-zinc-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div class="flex items-center gap-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                <div>
+                  <h2 class="text-xs sm:text-sm font-bold text-white"><span class="text-emerald-400">${data.totalCount}</span> Concepts Saved in Hard Revision</h2>
+                  <p class="text-[11px] text-zinc-400">Download all concept texts into a single backup file to protect against accidental deletion.</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="triggerHardRevisionDownload()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Download Backup (.md)</span>
+                </button>
+                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-300 hover:text-white transition cursor-pointer" title="Restore highlights from a previously downloaded backup file">
+                  <svg class="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span class="hidden sm:inline">Restore</span>
+                  <input type="file" onchange="restoreHardRevisionFromFile(this.files[0])" accept=".md,.json,.txt" class="hidden" />
+                </label>
+              </div>
+            </div>
         `;
 
         data.topics.forEach(t => {
