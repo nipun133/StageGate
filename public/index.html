@@ -159,7 +159,8 @@
     }
 
     /* Permanent Exam Focus Highlight: Crisp Emerald Mint (Zero Layout Shift / Zero Word Wrapping Shift) */
-    .exam-focus-highlight {
+    .exam-focus-highlight,
+    .exam-focus-highlight * {
       background: transparent !important;
       color: #34d399 !important;
       border: none !important;
@@ -746,6 +747,8 @@
         // 2. Apply incoming Firestore data non-destructively (never let an empty/stale remote wipe local data!)
         let changedScores = false;
         let changedHighlights = false;
+        let isInitialSnapshot = !window.__hasReceivedInitialSnapshot;
+        window.__hasReceivedInitialSnapshot = true;
         const recentDeletions = window._recentlyDeletedSnippets || {};
         const now = Date.now();
         for (const [snip, exp] of Object.entries(recentDeletions)) {
@@ -804,7 +807,7 @@
         if (changedScores && typeof window.refreshCurrentTopicVisuals === 'function') {
           window.refreshCurrentTopicVisuals();
         }
-        if (changedHighlights) {
+        if (isInitialSnapshot || changedHighlights) {
           if (typeof window.refreshCurrentTopicHighlights === 'function') {
             window.refreshCurrentTopicHighlights();
           }
@@ -825,7 +828,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795178206976"></script>
+  <script src="topics-data.js?v=1795185588239"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1437,16 +1440,22 @@
 
       if (targetTextNodes.length === 0) return [];
 
+      // Freeze range boundaries BEFORE mutating DOM to avoid live Range collapsing
+      const startNode = range.startContainer;
+      const startOffset = range.startOffset;
+      const endNode = range.endContainer;
+      const endOffset = range.endOffset;
+
       const createdMarks = [];
       targetTextNodes.forEach((node) => {
         let start = 0;
         let end = node.nodeValue.length;
 
-        if (node === range.startContainer) {
-          start = range.startOffset;
+        if (node === startNode) {
+          start = startOffset;
         }
-        if (node === range.endContainer) {
-          end = range.endOffset;
+        if (node === endNode) {
+          end = endOffset;
         }
 
         if (start >= end) return;
@@ -1789,6 +1798,8 @@
     }
 
     function findRangeForSnippet(conceptH2, snippet) {
+      if (!conceptH2 || !snippet) return null;
+
       let nextH2 = null;
       const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
       const idx = h2Elements.indexOf(conceptH2);
@@ -1797,6 +1808,7 @@
       }
 
       const textNodes = [];
+      const nonWsChars = [];
       let curr = conceptH2.nextSibling;
       while (curr && curr !== nextH2) {
         if (curr.nodeType === Node.ELEMENT_NODE) {
@@ -1813,11 +1825,18 @@
               continue;
             }
             textNodes.push(tn);
+            const val = tn.nodeValue || '';
+            for (let i = 0; i < val.length; i++) {
+              if (!/\s/.test(val[i])) {
+                nonWsChars.push({ char: val[i], node: tn, offset: i });
+              }
+            }
           }
         }
         curr = curr.nextSibling;
       }
 
+      // Tier 1 & Tier 2: Exact Substring & Collapsed Whitespace Match
       let fullText = '';
       const nodeMap = [];
       textNodes.forEach(node => {
@@ -1868,34 +1887,51 @@
         }
       }
 
-      if (matchIdx === -1) return null;
-      const targetEnd = matchIdx + matchLen;
-      let startNode = null, startOffset = 0;
-      let endNode = null, endOffset = 0;
+      if (matchIdx !== -1) {
+        const targetEnd = matchIdx + matchLen;
+        let startNode = null, startOffset = 0;
+        let endNode = null, endOffset = 0;
 
-      for (let i = 0; i < nodeMap.length; i++) {
-        const item = nodeMap[i];
-        if (!startNode && matchIdx >= item.start && matchIdx < item.end) {
-          startNode = item.node;
-          startOffset = matchIdx - item.start;
+        for (let i = 0; i < nodeMap.length; i++) {
+          const item = nodeMap[i];
+          if (!startNode && matchIdx >= item.start && matchIdx < item.end) {
+            startNode = item.node;
+            startOffset = matchIdx - item.start;
+          }
+          if (targetEnd > item.start && targetEnd <= item.end) {
+            endNode = item.node;
+            endOffset = targetEnd - item.start;
+            break;
+          }
         }
-        if (targetEnd > item.start && targetEnd <= item.end) {
-          endNode = item.node;
-          endOffset = targetEnd - item.start;
-          break;
+
+        if (startNode && endNode) {
+          try {
+            const range = document.createRange();
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+            return range;
+          } catch(e) {}
         }
       }
 
-      if (startNode && endNode) {
-        try {
-          const range = document.createRange();
-          range.setStart(startNode, startOffset);
-          range.setEnd(endNode, endOffset);
-          return range;
-        } catch(e) {
-          return null;
+      // Tier 3: Non-whitespace Character Stream (Handles tables, lists, multi-paragraph, and code blocks)
+      const snipClean = (snippet || '').replace(/\s+/g, '');
+      if (snipClean.length >= 2 && nonWsChars.length >= snipClean.length) {
+        const fullNonWsStr = nonWsChars.map(c => c.char).join('');
+        const matchPos = fullNonWsStr.indexOf(snipClean);
+        if (matchPos !== -1) {
+          const startObj = nonWsChars[matchPos];
+          const endObj = nonWsChars[matchPos + snipClean.length - 1];
+          try {
+            const range = document.createRange();
+            range.setStart(startObj.node, startObj.offset);
+            range.setEnd(endObj.node, endObj.offset + 1);
+            return range;
+          } catch(e) {}
         }
       }
+
       return null;
     }
 
@@ -1925,6 +1961,10 @@
         });
 
         cleanHighlights.forEach((snippet) => {
+          // If already highlighted in DOM for this concept, skip to avoid duplicate work
+          const existingMarks = getMarksForSnippet(conceptNum, snippet);
+          if (existingMarks.length > 0) return;
+
           const range = findRangeForSnippet(h2, snippet);
           if (range) {
             const marks = highlightRange(range, topicId, conceptNum, snippet);
