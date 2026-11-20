@@ -194,8 +194,18 @@
 
     .exam-focus-highlight.holding {
       opacity: 0.35 !important;
+      filter: grayscale(0.8);
       user-select: none !important;
       -webkit-user-select: none !important;
+      transition: opacity 0.4s ease, filter 0.4s ease;
+    }
+
+    .exam-focus-highlight.removing {
+      opacity: 0.25 !important;
+      color: #f87171 !important;
+      text-decoration: line-through !important;
+      filter: grayscale(1);
+      transition: opacity 0.25s ease;
     }
 
     .markdown-body h3 {
@@ -828,7 +838,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795185588239"></script>
+  <script src="topics-data.js?v=1795187310912"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1283,8 +1293,8 @@
       });
     }
 
-    function removeSnippet(topicId, conceptNum, snippet, shouldReloadHardRevision = true) {
-      if (!topicId || !conceptNum || !snippet) return;
+    async function removeSnippet(topicId, conceptNum, snippet, shouldReloadHardRevision = true) {
+      if (!topicId || !conceptNum || !snippet) return false;
       const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
       let list = [];
       try {
@@ -1294,6 +1304,10 @@
       }
 
       const cleanSnippet = snippet.replace(/\s+/g, ' ').trim();
+
+      // 1. Enter saving/removing state
+      isSavingHighlight = true;
+      setSyncStatus('saving', 'Removing highlight...');
 
       // Track recent deletion to prevent Firestore snapshot race condition
       window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
@@ -1311,11 +1325,8 @@
       });
 
       localStorage.setItem(storageKey, JSON.stringify(list));
-      if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-        window.StageGateSync.saveHighlights(storageKey, list);
-      }
 
-      // Unwrap DOM marks for this concept that match or overlap
+      // 2. Unwrap DOM marks for this concept that match or overlap
       const allMarks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
       allMarks.forEach(m => {
         const s = (m.getAttribute('data-snippet') || '').replace(/\s+/g, ' ').trim();
@@ -1338,6 +1349,34 @@
       if (shouldReloadHardRevision && window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
         window.loadHardRevision(false);
       }
+
+      // 3. Await Firestore confirmation
+      let saveOk = false;
+      try {
+        if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+          saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+        } else {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            await new Promise(r => setTimeout(r, 350));
+            if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+              saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Remove highlight exception:", err);
+      }
+
+      // 4. Confirm cloud sync completion
+      if (saveOk) {
+        setSyncStatus('saved', 'Removed & Synced!');
+      } else {
+        setSyncStatus('error', 'Removed locally');
+      }
+
+      isSavingHighlight = false;
+      return saveOk;
     }
 
     function checkTextSelection() {
@@ -1505,18 +1544,24 @@
       const ind = document.getElementById('cloudSyncIndicator');
       if (!ind) return;
       if (state === 'saving') {
+        const isRemoving = message && message.toLowerCase().includes('remov');
+        const isClearing = message && message.toLowerCase().includes('clear');
+        const shortText = isRemoving ? 'Removing...' : (isClearing ? 'Clearing...' : 'Saving...');
         ind.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-medium animate-pulse shrink-0';
         ind.innerHTML = `
           <svg class="animate-spin w-3 h-3 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
           <span class="hidden sm:inline">${message || 'Saving to cloud...'}</span>
-          <span class="sm:hidden">Saving...</span>
+          <span class="sm:hidden">${shortText}</span>
         `;
       } else if (state === 'saved') {
+        const isRemoving = message && message.toLowerCase().includes('remov');
+        const isClearing = message && message.toLowerCase().includes('clear');
+        const shortText = isRemoving ? 'Removed' : (isClearing ? 'Cleared' : 'Saved');
         ind.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium transition shrink-0';
         ind.innerHTML = `
           <svg class="w-3 h-3 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           <span class="hidden sm:inline">${message || 'Synced & Saved!'}</span>
-          <span class="sm:hidden">Saved</span>
+          <span class="sm:hidden">${shortText}</span>
         `;
         setTimeout(() => {
           if (!isSavingHighlight) {
@@ -1744,7 +1789,7 @@
         const allMatchingMarks = getMarksForSnippet(conceptNum, snippet);
         allMatchingMarks.forEach(m => m.classList.add('holding'));
 
-        holdTimer = setTimeout(() => {
+        holdTimer = setTimeout(async () => {
           isHolding = false;
           isHoldingHighlight = false;
           hasHoldTriggeredRemoval = true;
@@ -1753,8 +1798,8 @@
             try { navigator.vibrate([35, 45]); } catch (err) {}
           }
 
-          removeSnippet(topicId, conceptNum, snippet);
           hideFloatingBtn();
+          await removeSnippet(topicId, conceptNum, snippet);
         }, HOLD_TIME_MS);
       }
 
@@ -1980,7 +2025,7 @@
       });
     }
 
-    function clearConceptHighlights(topicId, conceptNum) {
+    async function clearConceptHighlights(topicId, conceptNum) {
       const highlightKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
       window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
       let oldList = [];
@@ -1992,9 +2037,19 @@
         });
       }
       localStorage.removeItem(highlightKey);
-      if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-        window.StageGateSync.saveHighlights(highlightKey, []);
+
+      isSavingHighlight = true;
+      setSyncStatus('saving', 'Clearing highlights...');
+
+      let saveOk = false;
+      try {
+        if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+          saveOk = await window.StageGateSync.saveHighlights(highlightKey, []);
+        }
+      } catch (err) {
+        console.warn("Clear highlights error:", err);
       }
+
       const marks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
       marks.forEach((m) => {
         const parent = m.parentNode;
@@ -2012,6 +2067,13 @@
       if (window.isHardRevisionActive && typeof window.loadHardRevision === 'function') {
         window.loadHardRevision(false);
       }
+
+      if (saveOk) {
+        setSyncStatus('saved', 'Cleared & Synced!');
+      } else {
+        setSyncStatus('error', 'Cleared locally');
+      }
+      isSavingHighlight = false;
     }
 
     window.refreshCurrentTopicHighlights = function() {
@@ -2209,17 +2271,49 @@
       }, 120);
     }
 
-    function removeSnippetFromRevisionSheet(topicId, conceptNum, snippet, btn) {
-      // 1. Remove from storage & sync WITHOUT triggering full re-render
-      removeSnippet(topicId, conceptNum, snippet, false);
-
+    async function removeSnippetFromRevisionSheet(topicId, conceptNum, snippet, btn) {
       const card = btn ? btn.closest('.snippet-card') : null;
+
+      // 1. Immediately switch button to visible Loading State and dim the card
+      if (btn) {
+        btn.disabled = true;
+        btn.style.pointerEvents = 'none';
+        btn.className = 'remove-revision-snippet-btn px-2 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[11px] font-medium flex items-center gap-1.5 cursor-wait';
+        btn.innerHTML = `
+          <svg class="animate-spin w-3 h-3 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Removing...</span>
+        `;
+      }
+      if (card) {
+        card.style.transition = 'opacity 0.2s ease';
+        card.style.opacity = '0.4';
+      }
+
+      // 2. Remove from storage & await cloud sync
+      await removeSnippet(topicId, conceptNum, snippet, false);
+
       if (!card) {
         loadHardRevision(false);
         return;
       }
 
-      // 2. Animate out the card smoothly in DOM without touching page scroll
+      // 3. Briefly show 'Removed' checkmark on button
+      if (btn) {
+        btn.className = 'remove-revision-snippet-btn px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-medium flex items-center gap-1.5';
+        btn.innerHTML = `
+          <svg class="w-3 h-3 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>Removed!</span>
+        `;
+      }
+
+      await new Promise(r => setTimeout(r, 260));
+
+      // 4. Animate out the card smoothly in DOM without touching page scroll
       card.style.transition = 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.22s ease, margin 0.22s ease, padding 0.22s ease';
       card.style.maxHeight = `${card.offsetHeight}px`;
       card.style.overflow = 'hidden';
