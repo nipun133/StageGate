@@ -41,3 +41,12 @@ The workspace is divided into three primary folders:
     2. **Mistake & Solution Breakdown**: Provide a clear explanation of what was done wrong, the exact Oracle error code and description (if applicable), and the correct solution.
     3. **Remediation Drill**: Ask follow-up check questions on that concept until the user solves it correctly.
   - **Zero Counter Increment on Remediation**: Successfully solving a remediation question does **not** increment the counter in `DRILLS_MATRIX.md`. A counter strictly increments only when a fresh, random question is solved correctly on the first attempt during random rotation. Once remediation is complete, the drill matrix remains unchanged and random rotation resumes.
+
+## Automatic Git Sync & Deployment Protocol
+- **Continuous GitHub Sync**: Whenever any file is created, updated, or deleted (such as `NOTES.md`, `TRACKER.md`, `DRILLS_MATRIX.md`, drill questions, or curriculum files), immediately commit and push the changes to GitHub without waiting for an explicit prompt.
+- **Execution Workflow**:
+  1. If notes or website data are updated, regenerate the live site payload (`node build_site.js`).
+  2. Stage all modifications (`git add -A`).
+  3. Create a concise, descriptive commit message summarizing the exact changes made (e.g., `git commit -m "Update NOTES.md: Character functions LPAD/RPAD with drill history"`).
+  4. Push directly to remote (`git push origin main`).
+  5. If public website assets or notes were updated, deploy the latest build to Firebase Hosting (`firebase deploy --only hosting`) to keep the live web app in sync.
