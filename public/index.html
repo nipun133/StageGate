@@ -838,7 +838,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795187893276"></script>
+  <script src="topics-data.js?v=1795284929666"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2483,12 +2483,25 @@
           .trim();
       }
 
+      function getWordCoverage(needleAlpha, haystackAlpha) {
+        if (!needleAlpha) return 1.0;
+        const nWords = needleAlpha.split(' ').filter(w => w.length > 0);
+        if (nWords.length === 0) return 1.0;
+        let matched = 0;
+        for (const w of nWords) {
+          if (haystackAlpha.includes(w)) matched++;
+        }
+        return matched / nWords.length;
+      }
+
       const snippetAlpha = toAlpha(snippet);
       const topic = topics.find(t => t.id === topicId);
 
-      if (topic && topic.content && snippetAlpha) {
-        // Extract concept markdown lines
-        const lines = topic.content.split('\n');
+      if (topic && snippetAlpha) {
+        const sWords = snippetAlpha.split(' ').filter(w => w.length > 0);
+
+        // 1. Extract concept markdown lines from topic.content
+        const lines = (topic.content || '').split('\n');
         let inConcept = false;
         const conceptLines = [];
         for (const line of lines) {
@@ -2504,7 +2517,7 @@
           }
         }
 
-        // 1. Check for markdown tables in concept
+        // 2. Check for markdown tables in concept
         const tables = [];
         let curTableLines = [];
         for (const l of conceptLines) {
@@ -2519,19 +2532,19 @@
           tables.push(curTableLines);
         }
 
+        let bestTable = null;
+        let bestTableCoverage = 0;
         for (const tbl of tables) {
           const headerLines = tbl.slice(0, 2);
           const dataRows = tbl.slice(2);
           const fullTableAlpha = toAlpha(tbl.join('\n'));
 
-          // Check if snippet matches full table
           if (snippetAlpha === fullTableAlpha || 
               snippetAlpha.includes(fullTableAlpha) || 
               (fullTableAlpha.includes(snippetAlpha) && snippetAlpha.length > fullTableAlpha.length * 0.6)) {
-            return {
-              isTable: true,
-              html: `<div class="markdown-body w-full">${marked.parse(tbl.join('\n'))}</div>`
-            };
+            bestTable = tbl.join('\n');
+            bestTableCoverage = 1.0;
+            break;
           }
 
           // Check if snippet matches a subset of table rows
@@ -2542,39 +2555,156 @@
 
           if (matchingRows.length > 0 && matchingRows.length >= dataRows.length * 0.3) {
             const subTableMd = [...headerLines, ...matchingRows].join('\n');
-            return {
-              isTable: true,
-              html: `<div class="markdown-body w-full">${marked.parse(subTableMd)}</div>`
-            };
+            const cov = getWordCoverage(snippetAlpha, toAlpha(subTableMd));
+            if (cov > bestTableCoverage) {
+              bestTableCoverage = cov;
+              bestTable = subTableMd;
+            }
+          }
+
+          const cov = getWordCoverage(snippetAlpha, fullTableAlpha);
+          if (cov > 0.75 && cov > bestTableCoverage) {
+            bestTableCoverage = cov;
+            bestTable = tbl.join('\n');
           }
         }
 
-        // 2. Check for matching lines/paragraphs in concept (supports multi-line & multi-paragraph selections!)
-        let startIdx = -1;
-        let endIdx = -1;
+        // 3. Check for matching lines/paragraphs in concept (supports partial line & multi-line selections!)
+        const lineAlphas = conceptLines.map(l => toAlpha(l));
+        let bestStart = -1;
+        let bestEnd = -1;
 
-        for (let i = 0; i < conceptLines.length; i++) {
-          const l = conceptLines[i].trim();
-          if (!l || l.startsWith('|')) continue;
-          const lAlpha = toAlpha(l);
-          if (!lAlpha) continue;
-
-          // Check if this line is part of the selection or the selection is part of this line
-          if (snippetAlpha.includes(lAlpha) || lAlpha.includes(snippetAlpha)) {
-            if (startIdx === -1) startIdx = i;
-            endIdx = i;
+        // A. Match start and end phrases (3-5 words)
+        for (let n = Math.min(5, sWords.length); n >= 2; n--) {
+          const startPhrase = sWords.slice(0, n).join(' ');
+          const idx = lineAlphas.findIndex(la => la.includes(startPhrase));
+          if (idx !== -1) {
+            bestStart = idx;
+            break;
           }
         }
 
-        if (startIdx !== -1 && endIdx !== -1) {
-          const matchedMd = conceptLines.slice(startIdx, endIdx + 1).join('\n').trim();
-          if (matchedMd) {
+        for (let n = Math.min(5, sWords.length); n >= 2; n--) {
+          const endPhrase = sWords.slice(sWords.length - n).join(' ');
+          for (let i = lineAlphas.length - 1; i >= 0; i--) {
+            if (lineAlphas[i].includes(endPhrase)) {
+              bestEnd = i;
+              break;
+            }
+          }
+          if (bestEnd !== -1) break;
+        }
+
+        // B. Fallback / broad word overlap if phrase matching missed
+        if (bestStart === -1 || bestEnd === -1 || bestStart > bestEnd) {
+          let firstMatch = -1;
+          let lastMatch = -1;
+          for (let i = 0; i < conceptLines.length; i++) {
+            const la = lineAlphas[i];
+            if (!la) continue;
+            if (snippetAlpha.includes(la) || la.includes(snippetAlpha)) {
+              if (firstMatch === -1) firstMatch = i;
+              lastMatch = i;
+            } else {
+              const lWords = la.split(' ');
+              let shared = false;
+              for (let j = 0; j <= lWords.length - 3; j++) {
+                if (snippetAlpha.includes(lWords.slice(j, j + 3).join(' '))) {
+                  shared = true;
+                  break;
+                }
+              }
+              if (shared) {
+                if (firstMatch === -1) firstMatch = i;
+                lastMatch = i;
+              }
+            }
+          }
+          if (bestStart === -1 || (firstMatch !== -1 && firstMatch < bestStart)) bestStart = firstMatch;
+          if (bestEnd === -1 || (lastMatch !== -1 && lastMatch > bestEnd)) bestEnd = lastMatch;
+        }
+
+        let matchedMd = null;
+        let mdCoverage = 0;
+        if (bestStart !== -1 && bestEnd !== -1 && bestStart <= bestEnd) {
+          // Expand boundary backwards to ensure start of snippet is covered
+          for (let k = 0; k < 5 && bestStart > 0; k++) {
+            const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
+            const targetStart = sWords.slice(0, Math.min(3, sWords.length)).join(' ');
+            if (curJoined.includes(targetStart)) break;
+            bestStart--;
+          }
+          // Expand boundary forwards to ensure end of snippet is covered
+          for (let k = 0; k < 5 && bestEnd < conceptLines.length - 1; k++) {
+            const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
+            const targetEnd = sWords.slice(Math.max(0, sWords.length - 3)).join(' ');
+            if (curJoined.includes(targetEnd)) break;
+            bestEnd++;
+          }
+
+          matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
+          mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
+        }
+
+        // 4. Check topic.examples
+        let bestEx = null;
+        let exCoverage = 0;
+        if (topic.examples && topic.examples[conceptNum]) {
+          for (const ex of topic.examples[conceptNum]) {
+            const combinedAlpha = toAlpha((ex.sql || '') + ' ' + (ex.output || ''));
+            const cov = getWordCoverage(snippetAlpha, combinedAlpha);
+            if (cov > exCoverage) {
+              exCoverage = cov;
+              bestEx = ex;
+            }
+          }
+        }
+
+        // Evaluate priority:
+        if (bestTable && bestTableCoverage >= 0.85 && bestTableCoverage >= mdCoverage && bestTableCoverage >= exCoverage) {
+          return {
+            isTable: true,
+            html: `<div class="markdown-body w-full">${marked.parse(bestTable)}</div>`
+          };
+        }
+
+        if (matchedMd && mdCoverage >= 0.85 && mdCoverage >= exCoverage) {
+          return {
+            isTable: false,
+            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+          };
+        }
+
+        if (bestEx && exCoverage >= 0.75) {
+          const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
+          if (isSql) {
             return {
               isTable: false,
-              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + snippet + '\n```')}</div>`
+            };
+          } else {
+            return {
+              isTable: false,
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed"><pre class="example-output-text whitespace-pre-wrap">${escapeHtml(snippet)}</pre></div>`
             };
           }
         }
+
+        if (matchedMd && mdCoverage >= 0.7) {
+          return {
+            isTable: false,
+            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+          };
+        }
+      }
+
+      // 5. Fallback: Guaranteed to display 100% of snippet text without truncation
+      const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
+      if (isSql) {
+        return {
+          isTable: false,
+          html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + snippet + '\n```')}</div>`
+        };
       }
 
       return {
@@ -2855,6 +2985,11 @@
 
         html += `</div>`;
         contentContainer.innerHTML = html;
+
+        // Syntax highlight any pre code blocks in revision cards
+        contentContainer.querySelectorAll('pre code').forEach((el) => {
+          try { hljs.highlightElement(el); } catch (err) {}
+        });
       }
 
       // Attach button event listeners
