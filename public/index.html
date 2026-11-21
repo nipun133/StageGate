@@ -838,7 +838,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795284929666"></script>
+  <script src="topics-data.js?v=1795286844010"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2626,30 +2626,43 @@
 
         let matchedMd = null;
         let mdCoverage = 0;
+        let isSubPhrase = false;
+
         if (bestStart !== -1 && bestEnd !== -1 && bestStart <= bestEnd) {
-          // Expand boundary backwards to ensure start of snippet is covered
-          for (let k = 0; k < 5 && bestStart > 0; k++) {
-            const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
-            const targetStart = sWords.slice(0, Math.min(3, sWords.length)).join(' ');
-            if (curJoined.includes(targetStart)) break;
-            bestStart--;
-          }
-          // Expand boundary forwards to ensure end of snippet is covered
-          for (let k = 0; k < 5 && bestEnd < conceptLines.length - 1; k++) {
-            const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
-            const targetEnd = sWords.slice(Math.max(0, sWords.length - 3)).join(' ');
-            if (curJoined.includes(targetEnd)) break;
-            bestEnd++;
+          // If the match is within a single line, check if the user selected only a short sub-phrase (< 65% of the line)
+          if (bestStart === bestEnd) {
+            const lineWords = lineAlphas[bestStart].split(' ').filter(Boolean);
+            const subRatio = sWords.length / (lineWords.length || 1);
+            if (subRatio < 0.65) {
+              isSubPhrase = true;
+            }
           }
 
-          matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
-          mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
+          if (!isSubPhrase) {
+            // Expand boundary backwards to ensure start of snippet is covered
+            for (let k = 0; k < 5 && bestStart > 0; k++) {
+              const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
+              const targetStart = sWords.slice(0, Math.min(3, sWords.length)).join(' ');
+              if (curJoined.includes(targetStart)) break;
+              bestStart--;
+            }
+            // Expand boundary forwards to ensure end of snippet is covered
+            for (let k = 0; k < 5 && bestEnd < conceptLines.length - 1; k++) {
+              const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
+              const targetEnd = sWords.slice(Math.max(0, sWords.length - 3)).join(' ');
+              if (curJoined.includes(targetEnd)) break;
+              bestEnd++;
+            }
+
+            matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
+            mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
+          }
         }
 
         // 4. Check topic.examples
         let bestEx = null;
         let exCoverage = 0;
-        if (topic.examples && topic.examples[conceptNum]) {
+        if (!isSubPhrase && topic.examples && topic.examples[conceptNum]) {
           for (const ex of topic.examples[conceptNum]) {
             const combinedAlpha = toAlpha((ex.sql || '') + ' ' + (ex.output || ''));
             const cov = getWordCoverage(snippetAlpha, combinedAlpha);
@@ -2668,14 +2681,14 @@
           };
         }
 
-        if (matchedMd && mdCoverage >= 0.85 && mdCoverage >= exCoverage) {
+        if (!isSubPhrase && matchedMd && mdCoverage >= 0.85 && mdCoverage >= exCoverage) {
           return {
             isTable: false,
             html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
           };
         }
 
-        if (bestEx && exCoverage >= 0.75) {
+        if (!isSubPhrase && bestEx && exCoverage >= 0.75) {
           const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
           if (isSql) {
             return {
@@ -2690,7 +2703,7 @@
           }
         }
 
-        if (matchedMd && mdCoverage >= 0.7) {
+        if (!isSubPhrase && matchedMd && mdCoverage >= 0.7) {
           return {
             isTable: false,
             html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
@@ -2698,7 +2711,7 @@
         }
       }
 
-      // 5. Fallback: Guaranteed to display 100% of snippet text without truncation
+      // 5. Fallback & Sub-phrase: Display exact highlighted snippet with emerald styling
       const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
       if (isSql) {
         return {
@@ -2709,7 +2722,7 @@
 
       return {
         isTable: false,
-        html: `<div class="text-xs text-white font-normal leading-relaxed whitespace-pre-wrap">${escapeHtml(snippet)}</div>`
+        html: `<div class="text-xs text-white font-normal leading-relaxed whitespace-pre-wrap"><mark class="exam-focus-highlight font-medium">${escapeHtml(snippet)}</mark></div>`
       };
     }
 
