@@ -338,6 +338,16 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    /* Hard Revision Card Code Blocks: Wraps cleanly, ZERO horizontal scroll */
+    .snippet-card pre,
+    .snippet-card pre code,
+    .snippet-card .markdown-body pre,
+    .snippet-card .markdown-body pre code {
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-x: hidden !important;
+    }
+
     .snippet-card .markdown-body pre {
       margin: 0 !important;
       padding: 0.65rem 0.85rem !important;
@@ -846,7 +856,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795333338233"></script>
+  <script src="topics-data.js?v=1795333753248"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
