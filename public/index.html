@@ -338,6 +338,14 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    .snippet-card .markdown-body pre {
+      margin: 0 !important;
+      padding: 0.65rem 0.85rem !important;
+      border-radius: 0.5rem;
+      font-size: 0.775rem !important;
+      line-height: 1.45 !important;
+    }
+
     /* Minor Color Accent: Warm Amber Warning Border & Text */
     .markdown-body blockquote {
       border-left: 3px solid #f59e0b;
@@ -838,7 +846,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795317940303"></script>
+  <script src="topics-data.js?v=1795333338233"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2689,11 +2697,19 @@
         }
 
         if (!isSubPhrase && bestEx && exCoverage >= 0.75) {
-          const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
+          const sqlAlpha = toAlpha(bestEx.sql);
+          const matchesSql = sqlAlpha && (sqlAlpha === snippetAlpha || sqlAlpha.includes(snippetAlpha) || snippetAlpha.includes(sqlAlpha));
+          const isSqlRegex = /^\s*(--|\/\*|(?:\b(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE|DECLARE|BEGIN)\b))/i;
+          const isSql = matchesSql || isSqlRegex.test(snippet);
+
           if (isSql) {
+            let codeToRender = (matchesSql && bestEx.sql) ? bestEx.sql : snippet;
+            if (/^\s*--/.test(codeToRender) && !codeToRender.includes('\n')) {
+              codeToRender = codeToRender.replace(/^(\s*--[^\n]*?)\s+(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i, '$1\n$2');
+            }
             return {
               isTable: false,
-              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + snippet + '\n```')}</div>`
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + codeToRender.trim() + '\n```')}</div>`
             };
           } else {
             return {
@@ -2711,12 +2727,17 @@
         }
       }
 
-      // 5. Fallback & Sub-phrase: Display exact highlighted snippet with emerald styling
-      const isSql = /^\s*(--|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE)\b/i.test(snippet);
+      // 5. Fallback & Sub-phrase: Display exact highlighted snippet
+      const isSqlRegex = /^\s*(--|\/\*|(?:\b(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE|DECLARE|BEGIN)\b))/i;
+      const isSql = isSqlRegex.test(snippet);
       if (isSql) {
+        let codeToRender = snippet;
+        if (/^\s*--/.test(codeToRender) && !codeToRender.includes('\n')) {
+          codeToRender = codeToRender.replace(/^(\s*--[^\n]*?)\s+(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i, '$1\n$2');
+        }
         return {
           isTable: false,
-          html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + snippet + '\n```')}</div>`
+          html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + codeToRender.trim() + '\n```')}</div>`
         };
       }
 
