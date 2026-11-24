@@ -856,7 +856,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795333753248"></script>
+  <script src="topics-data.js?v=1795540597221"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2592,7 +2592,7 @@
         let bestStart = -1;
         let bestEnd = -1;
 
-        // A. Match start and end phrases (3-5 words)
+        // A. Match start phrase (3-5 words)
         for (let n = Math.min(5, sWords.length); n >= 2; n--) {
           const startPhrase = sWords.slice(0, n).join(' ');
           const idx = lineAlphas.findIndex(la => la.includes(startPhrase));
@@ -2602,18 +2602,21 @@
           }
         }
 
-        for (let n = Math.min(5, sWords.length); n >= 2; n--) {
-          const endPhrase = sWords.slice(sWords.length - n).join(' ');
-          for (let i = lineAlphas.length - 1; i >= 0; i--) {
-            if (lineAlphas[i].includes(endPhrase)) {
-              bestEnd = i;
-              break;
+        // B. Match end phrase starting FORWARD from bestStart (never jump backwards from the end of the file!)
+        if (bestStart !== -1) {
+          for (let n = Math.min(5, sWords.length); n >= 2; n--) {
+            const endPhrase = sWords.slice(sWords.length - n).join(' ');
+            for (let i = bestStart; i < lineAlphas.length; i++) {
+              if (lineAlphas[i].includes(endPhrase)) {
+                bestEnd = i;
+                break;
+              }
             }
+            if (bestEnd !== -1) break;
           }
-          if (bestEnd !== -1) break;
         }
 
-        // B. Fallback / broad word overlap if phrase matching missed
+        // C. Fallback / broad word overlap if phrase matching missed
         if (bestStart === -1 || bestEnd === -1 || bestStart > bestEnd) {
           let firstMatch = -1;
           let lastMatch = -1;
@@ -2647,6 +2650,23 @@
         let isSubPhrase = false;
 
         if (bestStart !== -1 && bestEnd !== -1 && bestStart <= bestEnd) {
+          // Ensure candidate covers enough words of snippet
+          let candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+          while (candWords.length < sWords.length * 0.95 && bestEnd < conceptLines.length - 1) {
+            bestEnd++;
+            candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+          }
+
+          // If a markdown code fence was opened inside the range, ensure it is closed
+          let codeFences = 0;
+          for (let i = bestStart; i <= bestEnd; i++) {
+            if (/^\s*```/.test(conceptLines[i])) codeFences++;
+          }
+          while (codeFences % 2 !== 0 && bestEnd < conceptLines.length - 1) {
+            bestEnd++;
+            if (/^\s*```/.test(conceptLines[bestEnd])) codeFences++;
+          }
+
           // If the match is within a single line, check if the user selected only a short sub-phrase (< 65% of the line)
           if (bestStart === bestEnd) {
             const lineWords = lineAlphas[bestStart].split(' ').filter(Boolean);
@@ -2657,23 +2677,12 @@
           }
 
           if (!isSubPhrase) {
-            // Expand boundary backwards to ensure start of snippet is covered
-            for (let k = 0; k < 5 && bestStart > 0; k++) {
-              const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
-              const targetStart = sWords.slice(0, Math.min(3, sWords.length)).join(' ');
-              if (curJoined.includes(targetStart)) break;
-              bestStart--;
+            candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+            // Anti-bloat guard: reject if matched markdown is excessively larger than the user's snippet
+            if (candWords.length <= Math.max(sWords.length * 1.8, sWords.length + 15)) {
+              matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
+              mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
             }
-            // Expand boundary forwards to ensure end of snippet is covered
-            for (let k = 0; k < 5 && bestEnd < conceptLines.length - 1; k++) {
-              const curJoined = lineAlphas.slice(bestStart, bestEnd + 1).join(' ');
-              const targetEnd = sWords.slice(Math.max(0, sWords.length - 3)).join(' ');
-              if (curJoined.includes(targetEnd)) break;
-              bestEnd++;
-            }
-
-            matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
-            mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
           }
         }
 
