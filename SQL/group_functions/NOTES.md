@@ -4,8 +4,8 @@
 - Group (aggregate) functions operate on sets of rows to return one single summary result per group.
 - **AVG(col)**: Calculates the average (numbers only).
 - **SUM(col)**: Calculates the total sum (numbers only).
-- **MIN(col)**: Returns minimum value (works on numbers, characters, and dates).
-- **MAX(col)**: Returns maximum value (works on numbers, characters, and dates).
+- **MIN(col)**: Returns the smallest/minimum value across numbers (lowest number), characters (alphabetically first, `A → Z`), and dates (oldest/earliest date).
+- **MAX(col)**: Returns the largest/maximum value across numbers (highest number), characters (alphabetically last, `Z → A`), and dates (newest/latest date).
 - **COUNT(col)**: Counts values or rows.
 - Example: `SELECT MAX(salary), MAX(hire_date) FROM employees;`
 
