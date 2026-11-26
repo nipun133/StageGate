@@ -338,11 +338,11 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Hard Revision Card Code Blocks: Wraps cleanly, ZERO horizontal scroll */
-    .snippet-card pre,
-    .snippet-card pre code,
-    .snippet-card .markdown-body pre,
-    .snippet-card .markdown-body pre code {
+    /* Hard Revision Card Code Blocks: SQL wraps cleanly, Output Tables preserve columnar grid */
+    .snippet-card pre:not(.example-output-text),
+    .snippet-card pre:not(.example-output-text) code,
+    .snippet-card .markdown-body pre:not(.example-output-text),
+    .snippet-card .markdown-body pre:not(.example-output-text) code {
       white-space: pre-wrap !important;
       word-break: break-word !important;
       overflow-x: hidden !important;
@@ -354,6 +354,43 @@
       border-radius: 0.5rem;
       font-size: 0.775rem !important;
       line-height: 1.45 !important;
+    }
+
+    .snippet-card .example-output-label {
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #71717a;
+      letter-spacing: 0.05em;
+      margin-top: 0.45rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .snippet-card .example-output-label:first-child {
+      margin-top: 0;
+    }
+
+    .snippet-card pre.example-output-text {
+      background: #090d12 !important;
+      border: 1px solid #1e293b !important;
+      color: #cbd5e1 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.725rem !important;
+      line-height: 1.4 !important;
+      padding: 0.6rem 0.75rem !important;
+      border-radius: 0.375rem !important;
+      margin: 0 !important;
+      max-width: 100%;
+      white-space: pre !important;
+      word-break: normal !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+
+    .snippet-card pre.example-output-text.example-output-prose {
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-x: hidden !important;
     }
 
     /* Minor Color Accent: Warm Amber Warning Border & Text */
@@ -1193,7 +1230,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795656086257"></script>
+  <script src="topics-data.js?v=1795660682902"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -2607,6 +2644,310 @@
     /* --- Dedicated Hard Revision Mode --- */
     window.isHardRevisionActive = false;
 
+    function toAlphaSnippet(str) {
+      return (str || '')
+        .split('\n')
+        .filter(l => !/^\s*\|?\s*:?-+:?\s*\|/.test(l))
+        .join(' ')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function getAlphaWordCoverage(needleAlpha, haystackAlpha) {
+      if (!needleAlpha) return 1.0;
+      const nWords = needleAlpha.split(' ').filter(w => w.length > 0);
+      if (nWords.length === 0) return 1.0;
+      let matched = 0;
+      for (const w of nWords) {
+        if (haystackAlpha.includes(w)) matched++;
+      }
+      return matched / nWords.length;
+    }
+
+    // Shared snippet matcher for both Hard Revision rendering and normal-page ordering
+    function analyzeRevisionSnippet(snippet, topic, conceptNum) {
+      const snippetAlpha = toAlphaSnippet(snippet);
+      if (!topic || !snippetAlpha) return null;
+
+      const sWords = snippetAlpha.split(' ').filter(w => w.length > 0);
+
+      // 1. Extract concept markdown lines
+      const lines = (topic.content || '').split('\n');
+      let inConcept = false;
+      const conceptLines = [];
+      for (const line of lines) {
+        const m = line.match(/^##\s*(\d+)\.\s*(.*)/);
+        if (m) {
+          if (parseInt(m[1]) === conceptNum) {
+            inConcept = true;
+          } else if (inConcept) {
+            break;
+          }
+        } else if (inConcept) {
+          conceptLines.push(line);
+        }
+      }
+
+      // 2. Check for markdown tables in concept (and track line position)
+      const tables = [];
+      let curTableLines = [];
+      let curTableStartLine = -1;
+      conceptLines.forEach((l, lineIdx) => {
+        if (l.trim().startsWith('|')) {
+          if (curTableLines.length === 0) curTableStartLine = lineIdx;
+          curTableLines.push(l.trim());
+        } else if (curTableLines.length > 0) {
+          tables.push({ lines: curTableLines, startLine: curTableStartLine });
+          curTableLines = [];
+          curTableStartLine = -1;
+        }
+      });
+      if (curTableLines.length > 0) {
+        tables.push({ lines: curTableLines, startLine: curTableStartLine });
+      }
+
+      let bestTable = null;
+      let bestTableCoverage = 0;
+      let bestTableLine = -1;
+      for (const tblObj of tables) {
+        const tbl = tblObj.lines;
+        const headerLines = tbl.slice(0, 2);
+        const dataRows = tbl.slice(2);
+        const fullTableAlpha = toAlphaSnippet(tbl.join('\n'));
+
+        if (snippetAlpha === fullTableAlpha ||
+            snippetAlpha.includes(fullTableAlpha) ||
+            (fullTableAlpha.includes(snippetAlpha) && snippetAlpha.length > fullTableAlpha.length * 0.6)) {
+          bestTable = tbl.join('\n');
+          bestTableCoverage = 1.0;
+          bestTableLine = tblObj.startLine;
+          break;
+        }
+
+        const matchingRows = dataRows.filter(row => {
+          const rowAlpha = toAlphaSnippet(row);
+          return rowAlpha && (snippetAlpha.includes(rowAlpha) || rowAlpha.includes(snippetAlpha));
+        });
+
+        if (matchingRows.length > 0 && matchingRows.length >= dataRows.length * 0.3) {
+          const subTableMd = [...headerLines, ...matchingRows].join('\n');
+          const cov = getAlphaWordCoverage(snippetAlpha, toAlphaSnippet(subTableMd));
+          if (cov > bestTableCoverage) {
+            bestTableCoverage = cov;
+            bestTable = subTableMd;
+            const firstRowIdx = tbl.indexOf(matchingRows[0]);
+            bestTableLine = tblObj.startLine + Math.max(0, firstRowIdx);
+          }
+        }
+
+        const cov = getAlphaWordCoverage(snippetAlpha, fullTableAlpha);
+        if (cov > 0.75 && cov > bestTableCoverage) {
+          bestTableCoverage = cov;
+          bestTable = tbl.join('\n');
+          bestTableLine = tblObj.startLine;
+        }
+      }
+
+      // 3. Match lines/paragraphs in concept markdown
+      const lineAlphas = conceptLines.map(l => toAlphaSnippet(l));
+      let bestStart = -1;
+      let bestEnd = -1;
+      let bestStartChar = 0;
+
+      // A. Match start phrase (2-5 words)
+      for (let n = Math.min(5, sWords.length); n >= 2; n--) {
+        const startPhrase = sWords.slice(0, n).join(' ');
+        const idx = lineAlphas.findIndex(la => la.includes(startPhrase));
+        if (idx !== -1) {
+          bestStart = idx;
+          bestStartChar = Math.max(0, lineAlphas[idx].indexOf(startPhrase));
+          break;
+        }
+      }
+
+      // B. Match end phrase starting FORWARD from bestStart
+      if (bestStart !== -1) {
+        for (let n = Math.min(5, sWords.length); n >= 2; n--) {
+          const endPhrase = sWords.slice(sWords.length - n).join(' ');
+          for (let i = bestStart; i < lineAlphas.length; i++) {
+            if (lineAlphas[i].includes(endPhrase)) {
+              bestEnd = i;
+              break;
+            }
+          }
+          if (bestEnd !== -1) break;
+        }
+      }
+
+      // C. Fallback / broad word overlap if phrase matching missed
+      if (bestStart === -1 || bestEnd === -1 || bestStart > bestEnd) {
+        let firstMatch = -1;
+        let lastMatch = -1;
+        for (let i = 0; i < conceptLines.length; i++) {
+          const la = lineAlphas[i];
+          if (!la) continue;
+          if (snippetAlpha.includes(la) || la.includes(snippetAlpha)) {
+            if (firstMatch === -1) firstMatch = i;
+            lastMatch = i;
+          } else {
+            const lWords = la.split(' ');
+            let shared = false;
+            for (let j = 0; j <= lWords.length - 3; j++) {
+              if (snippetAlpha.includes(lWords.slice(j, j + 3).join(' '))) {
+                shared = true;
+                break;
+              }
+            }
+            if (shared) {
+              if (firstMatch === -1) firstMatch = i;
+              lastMatch = i;
+            }
+          }
+        }
+        if (bestStart === -1 || (firstMatch !== -1 && firstMatch < bestStart)) bestStart = firstMatch;
+        if (bestEnd === -1 || (lastMatch !== -1 && lastMatch > bestEnd)) bestEnd = lastMatch;
+      }
+
+      let matchedMd = null;
+      let mdCoverage = 0;
+      let isSubPhrase = false;
+
+      if (bestStart !== -1 && bestEnd !== -1 && bestStart <= bestEnd) {
+        let candWords = toAlphaSnippet(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+        while (candWords.length < sWords.length * 0.95 && bestEnd < conceptLines.length - 1) {
+          bestEnd++;
+          candWords = toAlphaSnippet(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+        }
+
+        let codeFences = 0;
+        for (let i = bestStart; i <= bestEnd; i++) {
+          if (/^\s*```/.test(conceptLines[i])) codeFences++;
+        }
+        while (codeFences % 2 !== 0 && bestEnd < conceptLines.length - 1) {
+          bestEnd++;
+          if (/^\s*```/.test(conceptLines[bestEnd])) codeFences++;
+        }
+
+        if (bestStart === bestEnd) {
+          const lineWords = lineAlphas[bestStart].split(' ').filter(Boolean);
+          const subRatio = sWords.length / (lineWords.length || 1);
+          if (subRatio < 0.65) {
+            isSubPhrase = true;
+          }
+        }
+
+        if (!isSubPhrase) {
+          candWords = toAlphaSnippet(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
+          if (candWords.length <= Math.max(sWords.length * 1.8, sWords.length + 15)) {
+            matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
+            mdCoverage = getAlphaWordCoverage(snippetAlpha, toAlphaSnippet(matchedMd));
+          }
+        }
+      }
+
+      // 4. Match topic.examples (supports SQL-only, Output-only, and SQL+Output combined!)
+      let bestEx = null;
+      let bestExIdx = -1;
+      let exCoverage = 0;
+      const cleanOutQuery = snippetAlpha.replace(/^output\s+/, '').trim();
+      const exList = (topic.examples && topic.examples[conceptNum]) || [];
+
+      exList.forEach((ex, exIdx) => {
+        const sqlAlpha = toAlphaSnippet(ex.sql || '');
+        const outAlpha = toAlphaSnippet(ex.output || '');
+        const combinedAlpha = (sqlAlpha + ' ' + outAlpha).trim();
+
+        const covCombined = getAlphaWordCoverage(snippetAlpha, combinedAlpha);
+        const covSql = sqlAlpha ? getAlphaWordCoverage(snippetAlpha, sqlAlpha) : 0;
+        const covOut = outAlpha ? getAlphaWordCoverage(cleanOutQuery, outAlpha) : 0;
+
+        let score = Math.max(covCombined, covSql, covOut);
+        if (outAlpha && (cleanOutQuery === outAlpha || outAlpha.includes(cleanOutQuery) || cleanOutQuery.includes(outAlpha))) {
+          score = Math.max(score, 0.99);
+        }
+        if (sqlAlpha && (snippetAlpha === sqlAlpha || sqlAlpha.includes(snippetAlpha) || snippetAlpha.includes(sqlAlpha))) {
+          score = Math.max(score, 0.99);
+        }
+
+        if (score > exCoverage) {
+          exCoverage = score;
+          bestEx = ex;
+          bestExIdx = exIdx;
+        }
+      });
+
+      let matchesSql = false;
+      let matchesOut = false;
+      if (bestEx) {
+        const sqlAlpha = toAlphaSnippet(bestEx.sql || '');
+        const outAlpha = toAlphaSnippet(bestEx.output || '');
+        const sqlExactOrSub = !!(sqlAlpha && (sqlAlpha === snippetAlpha || sqlAlpha.includes(snippetAlpha) || snippetAlpha.includes(sqlAlpha)));
+        const outExactOrSub = !!(outAlpha && (outAlpha === cleanOutQuery || outAlpha.includes(cleanOutQuery) || cleanOutQuery.includes(outAlpha)));
+        const isSqlKeywordStart = /^\s*(--|\/\*|(?:\b(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE|DECLARE|BEGIN)\b))/i.test(snippet);
+
+        matchesSql = sqlExactOrSub || (!!sqlAlpha && getAlphaWordCoverage(snippetAlpha, sqlAlpha) >= 0.75 && !outExactOrSub) || (!outExactOrSub && isSqlKeywordStart);
+        matchesOut = outExactOrSub || (!!outAlpha && getAlphaWordCoverage(cleanOutQuery, outAlpha) >= 0.75 && !sqlExactOrSub);
+      }
+
+      // 5. Evaluate final classification and page order score
+      if (bestTable && bestTableCoverage >= 0.85 && bestTableCoverage >= mdCoverage && bestTableCoverage >= exCoverage) {
+        return {
+          kind: 'table',
+          bestTable,
+          orderScore: (bestTableLine !== -1 ? bestTableLine : 0) * 10000
+        };
+      }
+
+      if (!isSubPhrase && matchedMd && mdCoverage >= 0.85 && mdCoverage >= exCoverage) {
+        return {
+          kind: 'markdown',
+          matchedMd,
+          orderScore: bestStart * 10000 + bestStartChar
+        };
+      }
+
+      if (!isSubPhrase && bestEx && exCoverage >= 0.75) {
+        return {
+          kind: 'example',
+          bestEx,
+          bestExIdx,
+          matchesSql,
+          matchesOut,
+          orderScore: 1000000 + bestExIdx * 100 + (matchesSql ? 0 : 10)
+        };
+      }
+
+      if (!isSubPhrase && matchedMd && mdCoverage >= 0.7) {
+        return {
+          kind: 'markdown',
+          matchedMd,
+          orderScore: bestStart * 10000 + bestStartChar
+        };
+      }
+
+      // Fallback order score (covers sub-phrases within lines or partial example matches)
+      let fallbackScore = 99999999;
+      if (bestStart !== -1 && (bestExIdx === -1 || mdCoverage >= exCoverage || isSubPhrase)) {
+        fallbackScore = bestStart * 10000 + bestStartChar;
+      } else if (bestExIdx !== -1 && exCoverage >= 0.5) {
+        fallbackScore = 1000000 + bestExIdx * 100 + (matchesSql ? 0 : 10);
+      }
+      return { kind: 'fallback', orderScore: fallbackScore };
+    }
+
+    function sortConceptSnippetsInPageOrder(snippets, topic, conceptNum) {
+      if (!Array.isArray(snippets) || snippets.length <= 1 || !topic) return snippets;
+      return snippets
+        .map((s, idx) => {
+          const analysis = analyzeRevisionSnippet(s, topic, conceptNum);
+          return { s, idx, score: analysis ? analysis.orderScore : 99999999 };
+        })
+        .sort((a, b) => a.score - b.score || a.idx - b.idx)
+        .map(item => item.s);
+    }
+
     function getAllHighlightsData() {
       const helpers = window.StageGateSyncHelpers;
       const result = [];
@@ -2646,11 +2987,12 @@
             }
 
             if (cleanList.length > 0) {
+              const orderedList = sortConceptSnippetsInPageOrder(cleanList, topic, c.num);
               totalCount += 1; // Count unique concepts, not individual paragraphs!
               topicConcepts.push({
                 conceptNum: c.num,
                 conceptTitle: `${c.num}. ${c.title}`,
-                snippets: cleanList,
+                snippets: orderedList,
                 storageKey: storageKey
               });
             }
@@ -2891,276 +3233,75 @@
       }, 230);
     }
 
+    function formatExampleOutputHtml(outputText, includeLabel = true) {
+      const isTabular = /-{3,}/.test(outputText || '');
+      const cls = isTabular ? 'example-output-text' : 'example-output-text example-output-prose';
+      const labelHtml = includeLabel ? '<div class="example-output-label">OUTPUT</div>' : '';
+      return `${labelHtml}<pre class="${cls}">${escapeHtml(outputText)}</pre>`;
+    }
+
+    function formatSqlMarkdownHtml(codeStr) {
+      let codeToRender = (codeStr || '').trim();
+      if (/^\s*--/.test(codeToRender) && !codeToRender.includes('\n')) {
+        codeToRender = codeToRender.replace(/^(\s*--[^\n]*?)\s+(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i, '$1\n$2');
+      }
+      return marked.parse('```sql\n' + codeToRender + '\n```');
+    }
+
     function renderRevisionSnippetContent(snippet, topicId, conceptNum) {
       if (!snippet) return { isTable: false, html: '' };
 
-      function toAlpha(str) {
-        return (str || '')
-          .split('\n')
-          .filter(l => !/^\s*\|?\s*:?-+:?\s*\|/.test(l))
-          .join(' ')
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-      }
-
-      function getWordCoverage(needleAlpha, haystackAlpha) {
-        if (!needleAlpha) return 1.0;
-        const nWords = needleAlpha.split(' ').filter(w => w.length > 0);
-        if (nWords.length === 0) return 1.0;
-        let matched = 0;
-        for (const w of nWords) {
-          if (haystackAlpha.includes(w)) matched++;
-        }
-        return matched / nWords.length;
-      }
-
-      const snippetAlpha = toAlpha(snippet);
       const topic = topics.find(t => t.id === topicId);
+      const analysis = topic ? analyzeRevisionSnippet(snippet, topic, conceptNum) : null;
 
-      if (topic && snippetAlpha) {
-        const sWords = snippetAlpha.split(' ').filter(w => w.length > 0);
-
-        // 1. Extract concept markdown lines from topic.content
-        const lines = (topic.content || '').split('\n');
-        let inConcept = false;
-        const conceptLines = [];
-        for (const line of lines) {
-          const m = line.match(/^##\s*(\d+)\.\s*(.*)/);
-          if (m) {
-            if (parseInt(m[1]) === conceptNum) {
-              inConcept = true;
-            } else if (inConcept) {
-              break;
-            }
-          } else if (inConcept) {
-            conceptLines.push(line);
-          }
-        }
-
-        // 2. Check for markdown tables in concept
-        const tables = [];
-        let curTableLines = [];
-        for (const l of conceptLines) {
-          if (l.trim().startsWith('|')) {
-            curTableLines.push(l.trim());
-          } else if (curTableLines.length > 0) {
-            tables.push(curTableLines);
-            curTableLines = [];
-          }
-        }
-        if (curTableLines.length > 0) {
-          tables.push(curTableLines);
-        }
-
-        let bestTable = null;
-        let bestTableCoverage = 0;
-        for (const tbl of tables) {
-          const headerLines = tbl.slice(0, 2);
-          const dataRows = tbl.slice(2);
-          const fullTableAlpha = toAlpha(tbl.join('\n'));
-
-          if (snippetAlpha === fullTableAlpha || 
-              snippetAlpha.includes(fullTableAlpha) || 
-              (fullTableAlpha.includes(snippetAlpha) && snippetAlpha.length > fullTableAlpha.length * 0.6)) {
-            bestTable = tbl.join('\n');
-            bestTableCoverage = 1.0;
-            break;
-          }
-
-          // Check if snippet matches a subset of table rows
-          const matchingRows = dataRows.filter(row => {
-            const rowAlpha = toAlpha(row);
-            return rowAlpha && (snippetAlpha.includes(rowAlpha) || rowAlpha.includes(snippetAlpha));
-          });
-
-          if (matchingRows.length > 0 && matchingRows.length >= dataRows.length * 0.3) {
-            const subTableMd = [...headerLines, ...matchingRows].join('\n');
-            const cov = getWordCoverage(snippetAlpha, toAlpha(subTableMd));
-            if (cov > bestTableCoverage) {
-              bestTableCoverage = cov;
-              bestTable = subTableMd;
-            }
-          }
-
-          const cov = getWordCoverage(snippetAlpha, fullTableAlpha);
-          if (cov > 0.75 && cov > bestTableCoverage) {
-            bestTableCoverage = cov;
-            bestTable = tbl.join('\n');
-          }
-        }
-
-        // 3. Check for matching lines/paragraphs in concept (supports partial line & multi-line selections!)
-        const lineAlphas = conceptLines.map(l => toAlpha(l));
-        let bestStart = -1;
-        let bestEnd = -1;
-
-        // A. Match start phrase (3-5 words)
-        for (let n = Math.min(5, sWords.length); n >= 2; n--) {
-          const startPhrase = sWords.slice(0, n).join(' ');
-          const idx = lineAlphas.findIndex(la => la.includes(startPhrase));
-          if (idx !== -1) {
-            bestStart = idx;
-            break;
-          }
-        }
-
-        // B. Match end phrase starting FORWARD from bestStart (never jump backwards from the end of the file!)
-        if (bestStart !== -1) {
-          for (let n = Math.min(5, sWords.length); n >= 2; n--) {
-            const endPhrase = sWords.slice(sWords.length - n).join(' ');
-            for (let i = bestStart; i < lineAlphas.length; i++) {
-              if (lineAlphas[i].includes(endPhrase)) {
-                bestEnd = i;
-                break;
-              }
-            }
-            if (bestEnd !== -1) break;
-          }
-        }
-
-        // C. Fallback / broad word overlap if phrase matching missed
-        if (bestStart === -1 || bestEnd === -1 || bestStart > bestEnd) {
-          let firstMatch = -1;
-          let lastMatch = -1;
-          for (let i = 0; i < conceptLines.length; i++) {
-            const la = lineAlphas[i];
-            if (!la) continue;
-            if (snippetAlpha.includes(la) || la.includes(snippetAlpha)) {
-              if (firstMatch === -1) firstMatch = i;
-              lastMatch = i;
-            } else {
-              const lWords = la.split(' ');
-              let shared = false;
-              for (let j = 0; j <= lWords.length - 3; j++) {
-                if (snippetAlpha.includes(lWords.slice(j, j + 3).join(' '))) {
-                  shared = true;
-                  break;
-                }
-              }
-              if (shared) {
-                if (firstMatch === -1) firstMatch = i;
-                lastMatch = i;
-              }
-            }
-          }
-          if (bestStart === -1 || (firstMatch !== -1 && firstMatch < bestStart)) bestStart = firstMatch;
-          if (bestEnd === -1 || (lastMatch !== -1 && lastMatch > bestEnd)) bestEnd = lastMatch;
-        }
-
-        let matchedMd = null;
-        let mdCoverage = 0;
-        let isSubPhrase = false;
-
-        if (bestStart !== -1 && bestEnd !== -1 && bestStart <= bestEnd) {
-          // Ensure candidate covers enough words of snippet
-          let candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
-          while (candWords.length < sWords.length * 0.95 && bestEnd < conceptLines.length - 1) {
-            bestEnd++;
-            candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
-          }
-
-          // If a markdown code fence was opened inside the range, ensure it is closed
-          let codeFences = 0;
-          for (let i = bestStart; i <= bestEnd; i++) {
-            if (/^\s*```/.test(conceptLines[i])) codeFences++;
-          }
-          while (codeFences % 2 !== 0 && bestEnd < conceptLines.length - 1) {
-            bestEnd++;
-            if (/^\s*```/.test(conceptLines[bestEnd])) codeFences++;
-          }
-
-          // If the match is within a single line, check if the user selected only a short sub-phrase (< 65% of the line)
-          if (bestStart === bestEnd) {
-            const lineWords = lineAlphas[bestStart].split(' ').filter(Boolean);
-            const subRatio = sWords.length / (lineWords.length || 1);
-            if (subRatio < 0.65) {
-              isSubPhrase = true;
-            }
-          }
-
-          if (!isSubPhrase) {
-            candWords = toAlpha(conceptLines.slice(bestStart, bestEnd + 1).join(' ')).split(' ').filter(Boolean);
-            // Anti-bloat guard: reject if matched markdown is excessively larger than the user's snippet
-            if (candWords.length <= Math.max(sWords.length * 1.8, sWords.length + 15)) {
-              matchedMd = conceptLines.slice(bestStart, bestEnd + 1).join('\n').trim();
-              mdCoverage = getWordCoverage(snippetAlpha, toAlpha(matchedMd));
-            }
-          }
-        }
-
-        // 4. Check topic.examples
-        let bestEx = null;
-        let exCoverage = 0;
-        if (!isSubPhrase && topic.examples && topic.examples[conceptNum]) {
-          for (const ex of topic.examples[conceptNum]) {
-            const combinedAlpha = toAlpha((ex.sql || '') + ' ' + (ex.output || ''));
-            const cov = getWordCoverage(snippetAlpha, combinedAlpha);
-            if (cov > exCoverage) {
-              exCoverage = cov;
-              bestEx = ex;
-            }
-          }
-        }
-
-        // Evaluate priority:
-        if (bestTable && bestTableCoverage >= 0.85 && bestTableCoverage >= mdCoverage && bestTableCoverage >= exCoverage) {
+      if (analysis) {
+        if (analysis.kind === 'table' && analysis.bestTable) {
           return {
             isTable: true,
-            html: `<div class="markdown-body w-full">${marked.parse(bestTable)}</div>`
+            html: `<div class="markdown-body w-full">${marked.parse(analysis.bestTable)}</div>`
           };
         }
 
-        if (!isSubPhrase && matchedMd && mdCoverage >= 0.85 && mdCoverage >= exCoverage) {
+        if (analysis.kind === 'markdown' && analysis.matchedMd) {
           return {
             isTable: false,
-            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(analysis.matchedMd)}</div>`
           };
         }
 
-        if (!isSubPhrase && bestEx && exCoverage >= 0.75) {
-          const sqlAlpha = toAlpha(bestEx.sql);
-          const matchesSql = sqlAlpha && (sqlAlpha === snippetAlpha || sqlAlpha.includes(snippetAlpha) || snippetAlpha.includes(sqlAlpha));
-          const isSqlRegex = /^\s*(--|\/\*|(?:\b(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE|DECLARE|BEGIN)\b))/i;
-          const isSql = matchesSql || isSqlRegex.test(snippet);
-
-          if (isSql) {
-            let codeToRender = (matchesSql && bestEx.sql) ? bestEx.sql : snippet;
-            if (/^\s*--/.test(codeToRender) && !codeToRender.includes('\n')) {
-              codeToRender = codeToRender.replace(/^(\s*--[^\n]*?)\s+(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i, '$1\n$2');
-            }
+        if (analysis.kind === 'example' && analysis.bestEx) {
+          const ex = analysis.bestEx;
+          if (analysis.matchesSql && analysis.matchesOut && ex.output) {
             return {
               isTable: false,
-              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + codeToRender.trim() + '\n```')}</div>`
-            };
-          } else {
-            return {
-              isTable: false,
-              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed"><pre class="example-output-text whitespace-pre-wrap">${escapeHtml(snippet)}</pre></div>`
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${formatSqlMarkdownHtml(ex.sql || snippet)}${formatExampleOutputHtml(ex.output, true)}</div>`
             };
           }
-        }
-
-        if (!isSubPhrase && matchedMd && mdCoverage >= 0.7) {
+          if (analysis.matchesSql) {
+            return {
+              isTable: false,
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${formatSqlMarkdownHtml(ex.sql || snippet)}</div>`
+            };
+          }
+          if (analysis.matchesOut && ex.output) {
+            return {
+              isTable: false,
+              html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${formatExampleOutputHtml(ex.output, true)}</div>`
+            };
+          }
           return {
             isTable: false,
-            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse(matchedMd)}</div>`
+            html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${formatExampleOutputHtml(snippet, false)}</div>`
           };
         }
       }
 
       // 5. Fallback & Sub-phrase: Display exact highlighted snippet
       const isSqlRegex = /^\s*(--|\/\*|(?:\b(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|GRANT|REVOKE|DECLARE|BEGIN)\b))/i;
-      const isSql = isSqlRegex.test(snippet);
-      if (isSql) {
-        let codeToRender = snippet;
-        if (/^\s*--/.test(codeToRender) && !codeToRender.includes('\n')) {
-          codeToRender = codeToRender.replace(/^(\s*--[^\n]*?)\s+(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i, '$1\n$2');
-        }
+      if (isSqlRegex.test(snippet)) {
         return {
           isTable: false,
-          html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${marked.parse('```sql\n' + codeToRender.trim() + '\n```')}</div>`
+          html: `<div class="markdown-body text-xs text-white font-normal leading-relaxed">${formatSqlMarkdownHtml(snippet)}</div>`
         };
       }
 
