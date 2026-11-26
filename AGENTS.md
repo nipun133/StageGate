@@ -30,10 +30,10 @@ The workspace is divided into three primary folders:
 - **Descriptive Error Messages**: When explaining query failures or syntax traps, always provide the descriptive Oracle error message and the exact reason behind it.
 
 ## SQL Practice Drills Protocol (`sql_drills/`)
-- **Shared Template vs. Local-Only Progress**:
-  - `sql_drills/DRILLS_MATRIX.md` and `sql_drills/QUESTIONS.md` are kept on GitHub strictly in their clean `0/X` format (with `(None yet)` history) so anyone cloning or downloading the repository can start practice drills locally from scratch.
-  - All live personal scores, counters, `History` logs, and answered questions MUST stay **local-only** in gitignored working files: `sql_drills/DRILLS_MATRIX.local.md` and `sql_drills/QUESTIONS.local.md`. **Never commit or push personal drill scores or answered questions to GitHub.**
-  - Before starting drills, if `sql_drills/DRILLS_MATRIX.local.md` or `sql_drills/QUESTIONS.local.md` does not exist yet locally, initialize it by copying the clean template from `sql_drills/DRILLS_MATRIX.md` / `sql_drills/QUESTIONS.md`.
+- **Shared Template vs. Local-Only Drill Sheet**:
+  - `sql_drills/DRILLS_MATRIX.md` is kept on GitHub strictly in its clean `0/X` format (with `(None yet)` history) so anyone cloning or downloading the repository can start practice drills locally from scratch.
+  - All live personal scores, counters, and `History` logs MUST stay **local-only** in the gitignored drill sheet: `sql_drills/DRILLS_MATRIX.local.md`. **Never commit or push personal drill scores or history to GitHub.**
+  - Before starting drills, if `sql_drills/DRILLS_MATRIX.local.md` does not exist yet locally, initialize it by copying the clean template from `sql_drills/DRILLS_MATRIX.md`.
 - **Master Drills Matrix (`DRILLS_MATRIX.local.md`)**: Maintained locally inside `sql_drills/`. Lists every SQL concept across all covered topics with live target counters (e.g., `Practical: 0/1 | MCQ: 0/2`).
 - **Interleaved Random Selection**: Select concepts at random from those that have not yet reached their target counters.
 - **Blind Question Presentation (Anti-Spoiler)**: Never display the topic name, concept name, concept number, or trap category when asking a question. Present only the question number, scenario/code, schema (if applicable), and options/requirements so the user must diagnose the problem completely unprompted.
