@@ -5,7 +5,6 @@ Comprehensive preparation materials, interactive web application, topic notes, a
 - 🌐 **Live Web App**: [stage-gate-8a890.web.app](https://stage-gate-8a890.web.app)
 - 🤖 **Agent Rules & Exam Guidelines**: [AGENTS.md](AGENTS.md)
 - 🎯 **Practice Drills Matrix**: [sql_drills/DRILLS_MATRIX.md](sql_drills/DRILLS_MATRIX.md)
-- ❓ **Drill Questions & Scenarios**: [sql_drills/QUESTIONS.md](sql_drills/QUESTIONS.md)
 
 ---
 
