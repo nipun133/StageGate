@@ -1,3 +1,5 @@
 # SQL Practice Drills (Pure Random Mixed Questions)
 
-*(Drills reset to 0. Ready for Question 1.)*
+> **Shared Template:** Local drill questions and your session progress are saved in `sql_drills/QUESTIONS.local.md` (gitignored and never pushed to GitHub).
+
+*(Ready for Question 1.)*

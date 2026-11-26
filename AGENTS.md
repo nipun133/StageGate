@@ -30,23 +30,27 @@ The workspace is divided into three primary folders:
 - **Descriptive Error Messages**: When explaining query failures or syntax traps, always provide the descriptive Oracle error message and the exact reason behind it.
 
 ## SQL Practice Drills Protocol (`sql_drills/`)
-- **Master Drills Matrix (`DRILLS_MATRIX.md`)**: Maintained inside `sql_drills/`. Lists every SQL concept across all covered topics with live target counters (e.g., `Practical: 0/1 | MCQ: 0/2`).
+- **Shared Template vs. Local-Only Progress**:
+  - `sql_drills/DRILLS_MATRIX.md` and `sql_drills/QUESTIONS.md` are kept on GitHub strictly in their clean `0/X` format (with `(None yet)` history) so anyone cloning or downloading the repository can start practice drills locally from scratch.
+  - All live personal scores, counters, `History` logs, and answered questions MUST stay **local-only** in gitignored working files: `sql_drills/DRILLS_MATRIX.local.md` and `sql_drills/QUESTIONS.local.md`. **Never commit or push personal drill scores or answered questions to GitHub.**
+  - Before starting drills, if `sql_drills/DRILLS_MATRIX.local.md` or `sql_drills/QUESTIONS.local.md` does not exist yet locally, initialize it by copying the clean template from `sql_drills/DRILLS_MATRIX.md` / `sql_drills/QUESTIONS.md`.
+- **Master Drills Matrix (`DRILLS_MATRIX.local.md`)**: Maintained locally inside `sql_drills/`. Lists every SQL concept across all covered topics with live target counters (e.g., `Practical: 0/1 | MCQ: 0/2`).
 - **Interleaved Random Selection**: Select concepts at random from those that have not yet reached their target counters.
 - **Blind Question Presentation (Anti-Spoiler)**: Never display the topic name, concept name, concept number, or trap category when asking a question. Present only the question number, scenario/code, schema (if applicable), and options/requirements so the user must diagnose the problem completely unprompted.
-- **Pre-Question History Inspection & Distinct Sub-Traps**: Before crafting a question for the selected concept, the agent must check that concept's `History` log in `DRILLS_MATRIX.md`. The new question must target a completely different, un-tested inner angle or trap within that concept (derived from its `NOTES.md`), never repeating or asking a similar variant of a previously asked question.
-- **Post-Solve History & Counter Logging**: Never write to `History` or increment counters in `DRILLS_MATRIX.md` in advance when presenting a question. Strictly log the brief trap title under `History` and increment the counter only *after* the user attempts and solves the question.
+- **Pre-Question History Inspection & Distinct Sub-Traps**: Before crafting a question for the selected concept, the agent must check that concept's `History` log in `DRILLS_MATRIX.local.md`. The new question must target a completely different, un-tested inner angle or trap within that concept (derived from its `NOTES.md`), never repeating or asking a similar variant of a previously asked question.
+- **Post-Solve History & Counter Logging**: Never write to `History` or increment counters in `DRILLS_MATRIX.local.md` in advance when presenting a question. Strictly log the brief trap title under `History` and increment the counter only *after* the user attempts and solves the question.
 - **Strict Failure, Remediation & Anti-Cheat Protocol**:
   - If the user fails a practical query or MCQ, the agent must:
     1. **Full Concept Drop**: Reproduce the entire concept section verbatim from that topic's `NOTES.md` so the user can review and recall the complete concept context.
     2. **Mistake & Solution Breakdown**: Provide a clear explanation of what was done wrong, the exact Oracle error code and description (if applicable), and the correct solution.
     3. **Remediation Drill**: Ask follow-up check questions on that concept until the user solves it correctly.
-  - **Zero Counter Increment on Remediation**: Successfully solving a remediation question does **not** increment the counter in `DRILLS_MATRIX.md`. A counter strictly increments only when a fresh, random question is solved correctly on the first attempt during random rotation. Once remediation is complete, the drill matrix remains unchanged and random rotation resumes.
+  - **Zero Counter Increment on Remediation**: Successfully solving a remediation question does **not** increment the counter in `DRILLS_MATRIX.local.md`. A counter strictly increments only when a fresh, random question is solved correctly on the first attempt during random rotation. Once remediation is complete, the drill matrix remains unchanged and random rotation resumes.
 
 ## Automatic Git Sync & Deployment Protocol
-- **Continuous GitHub Sync**: Whenever any file is created, updated, or deleted (such as `NOTES.md`, `TRACKER.md`, `DRILLS_MATRIX.md`, drill questions, or curriculum files), immediately commit and push the changes to GitHub without waiting for an explicit prompt.
+- **Continuous GitHub Sync**: Whenever shared curriculum/config files are created, updated, or deleted (such as `NOTES.md`, `TRACKER.md`, `AGENTS.md`, website files, or clean `0/X` format updates to `DRILLS_MATRIX.md`), immediately commit and push the changes to GitHub without waiting for an explicit prompt. **Never commit or push local drill scores (`sql_drills/*.local.md`) or live drill progress to GitHub.**
 - **Execution Workflow**:
   1. If notes or website data are updated, regenerate the live site payload (`node build_site.js`).
-  2. Stage all modifications (`git add -A`).
-  3. Create a concise, descriptive commit message summarizing the exact changes made (e.g., `git commit -m "Update NOTES.md: Character functions LPAD/RPAD with drill history"`).
+  2. Stage all tracked modifications (`git add -A` — local drill files `sql_drills/*.local.md` are gitignored).
+  3. Create a concise, descriptive commit message summarizing the exact changes made (e.g., `git commit -m "Update NOTES.md: Character functions LPAD/RPAD"`).
   4. Push directly to remote (`git push origin main`).
   5. If public website assets or notes were updated, deploy the latest build to Firebase Hosting (`firebase deploy --only hosting`) to keep the live web app in sync.

@@ -1,5 +1,7 @@
 # Master SQL Drills Matrix (Accurately Targeted Calibration)
 
+> **Shared Template (`0/X` format):** This file stays reset at `0` on GitHub so anyone downloading the repository can run drills from scratch. Your personal scores and question history are stored locally in `sql_drills/DRILLS_MATRIX.local.md` (gitignored and never pushed).
+
 ## 1. Topic: SELECT Statement
 - [ ] **1.1 Basic Projection (`SELECT` with `*` vs. specific columns, statement termination `;`)** | Practical: 0/1 | MCQ: 0/1
   - *History*: (None yet)
