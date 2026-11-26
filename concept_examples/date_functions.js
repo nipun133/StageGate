@@ -5,11 +5,15 @@ module.exports = {
       "output": "PLUS_SEVEN_DAYS  MINUS_TEN_DAYS\n---------------  --------------\n22-NOV-26        05-NOV-26     "
     },
     {
-      "sql": "-- Standard: Date minus Date returns total number of days as a numeric value\nSELECT TO_DATE('25-DEC-2026') - TO_DATE('15-NOV-2026') AS day_diff FROM dual;",
-      "output": "  DAY_DIFF\n----------\n        40"
+      "sql": "-- Standard: Date minus Date returns total number of days (later - earlier = positive; earlier - later = negative)\nSELECT TO_DATE('25-DEC-2026') - TO_DATE('15-NOV-2026') AS day_diff,\n       TO_DATE('15-NOV-2026') - TO_DATE('25-DEC-2026') AS neg_diff\nFROM dual;",
+      "output": "  DAY_DIFF    NEG_DIFF\n----------  ----------\n        40         -40"
     },
     {
-      "sql": "-- Feature: Fractional time arithmetic (1 hour = 1/24; 1 minute = 1/(24*60))\nSELECT TO_CHAR(TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI') + (4/24), 'DD-MON-YYYY HH24:MI') AS plus_4_hrs,\n       TO_CHAR(TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI') + (30/(24*60)), 'DD-MON-YYYY HH24:MI') AS plus_30_mins\nFROM dual;",
+      "sql": "-- Converting Date Difference to Hours/Minutes: Multiply days by 24 (hours) or 24*60 (minutes)\nSELECT (TO_DATE('15-NOV-2026 13:30', 'DD-MON-YYYY HH24:MI') - TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI')) * 24 AS hrs_diff,\n       (TO_DATE('15-NOV-2026 10:45', 'DD-MON-YYYY HH24:MI') - TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI')) * (24*60) AS mins_diff\nFROM dual;",
+      "output": "  HRS_DIFF   MINS_DIFF\n----------  ----------\n       3.5          45"
+    },
+    {
+      "sql": "-- Feature: Adding fractional time to a date (1 hour = 1/24; 1 minute = 1/(24*60))\nSELECT TO_CHAR(TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI') + (4/24), 'DD-MON-YYYY HH24:MI') AS plus_4_hrs,\n       TO_CHAR(TO_DATE('15-NOV-2026 10:00', 'DD-MON-YYYY HH24:MI') + (30/(24*60)), 'DD-MON-YYYY HH24:MI') AS plus_30_mins\nFROM dual;",
       "output": "PLUS_4_HRS         PLUS_30_MINS    \n-----------------  ----------------\n15-NOV-2026 14:00  15-NOV-2026 10:30"
     }
   ],

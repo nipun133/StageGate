@@ -6,7 +6,9 @@
 - `date + n`: Adds `n` days to the date (returns a Date).
 - `date - n`: Subtracts `n` days from the date (returns a Date).
 - `date1 - date2`: Calculates difference between dates (returns **number of days** as a numeric value).
-- Adding fractional time: 1 hour = `1/24`, 1 minute = `1/(24*60)`.
+  - **Sign Rule**: Put the later date first (`later_date - earlier_date` is positive; `earlier_date - later_date` is negative).
+  - **Converting Difference to Hours/Minutes**: Because `date1 - date2` returns **days**, multiply to convert into smaller units: `(later_date - earlier_date) * 24` gives **hours**, and `(later_date - earlier_date) * (24*60)` gives **minutes**.
+- Adding/subtracting fractional time on a date: 1 hour = `1/24`, 1 minute = `1/(24*60)` (e.g., `created_at + 6/24` adds 6 hours).
 - Example: `SELECT SYSDATE - hire_date AS "TOTAL DAYS" FROM employees;`
 
 ## 2. Calculating Months (MONTHS_BETWEEN)
