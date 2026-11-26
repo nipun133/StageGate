@@ -696,6 +696,199 @@
   </div>
 
 
+  <!-- Sync Helpers: Persistent Tombstones & Superset Deduplication -->
+  <script>
+    window.StageGateSyncHelpers = (function() {
+      const TOMBSTONES_KEY = 'stage_gate_highlight_tombstones';
+      const ADDS_KEY = 'stage_gate_highlight_adds';
+      const PENDING_ADDS_KEY = 'stage_gate_pending_adds';
+      const MAX_ENTRY_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
+      function normalize(str) {
+        return (str || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function readJson(key, fallback) {
+        try {
+          const val = JSON.parse(localStorage.getItem(key) || 'null');
+          return (val && typeof val === 'object' && !Array.isArray(val)) ? val : fallback;
+        } catch (e) {
+          return fallback;
+        }
+      }
+
+      function writeJson(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+        } catch (e) {}
+      }
+
+      // Deduplicate exact matches and overlapping subset/superset snippets (>= 12 chars),
+      // always preserving the broader, more complete highlight.
+      function dedupeHighlightsList(rawList) {
+        if (!Array.isArray(rawList)) return [];
+        const cleaned = [];
+        for (const raw of rawList) {
+          const norm = normalize(raw);
+          if (norm.length < 2) continue;
+
+          const covered = cleaned.some(existing => {
+            const normEx = normalize(existing);
+            return normEx === norm || (norm.length >= 12 && normEx.includes(norm));
+          });
+          if (covered) continue;
+
+          for (let i = cleaned.length - 1; i >= 0; i--) {
+            const normEx = normalize(cleaned[i]);
+            if (normEx.length >= 12 && norm.includes(normEx)) {
+              cleaned.splice(i, 1);
+            }
+          }
+          cleaned.push((raw || '').trim());
+        }
+        return cleaned;
+      }
+
+      function mergeEntryArrays(arrA, arrB) {
+        const map = new Map();
+        const now = Date.now();
+        for (const arr of [arrA, arrB]) {
+          if (!Array.isArray(arr)) continue;
+          for (const item of arr) {
+            if (!item || typeof item.n !== 'string') continue;
+            const norm = normalize(item.n);
+            const ts = typeof item.t === 'number' ? item.t : 0;
+            if (norm.length < 2 || ts <= 0) continue;
+            if (now - ts > MAX_ENTRY_AGE_MS) continue;
+            const prev = map.get(norm) || 0;
+            if (ts > prev) map.set(norm, ts);
+          }
+        }
+        return Array.from(map.entries()).map(([n, t]) => ({ n, t }));
+      }
+
+      function entriesToMap(arr) {
+        const m = new Map();
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            if (item && typeof item.n === 'string' && typeof item.t === 'number') {
+              const norm = normalize(item.n);
+              if (norm) m.set(norm, Math.max(m.get(norm) || 0, item.t));
+            }
+          }
+        }
+        return m;
+      }
+
+      function areEntryArraysEqual(arrA, arrB) {
+        const mapA = entriesToMap(arrA);
+        const mapB = entriesToMap(arrB);
+        if (mapA.size !== mapB.size) return false;
+        for (const [k, v] of mapA.entries()) {
+          if (mapB.get(k) !== v) return false;
+        }
+        return true;
+      }
+
+      function getTombstonesMap() { return readJson(TOMBSTONES_KEY, {}); }
+      function setTombstonesMap(map) { writeJson(TOMBSTONES_KEY, map || {}); }
+      function getAddsMap() { return readJson(ADDS_KEY, {}); }
+      function setAddsMap(map) { writeJson(ADDS_KEY, map || {}); }
+      function getPendingAddsMap() { return readJson(PENDING_ADDS_KEY, {}); }
+      function setPendingAddsMap(map) { writeJson(PENDING_ADDS_KEY, map || {}); }
+
+      function recordAdd(storageKey, rawSnippet, replacedNorms, ts = Date.now()) {
+        const norm = normalize(rawSnippet);
+        if (norm.length < 2) return;
+
+        const addMap = getAddsMap();
+        addMap[storageKey] = mergeEntryArrays(addMap[storageKey], [{ n: norm, t: ts }])
+          .filter(item => !(replacedNorms || []).includes(item.n) || item.n === norm || item.t > ts);
+        setAddsMap(addMap);
+
+        const pendingMap = getPendingAddsMap();
+        const keyPending = (pendingMap[storageKey] && typeof pendingMap[storageKey] === 'object') ? { ...pendingMap[storageKey] } : {};
+        (replacedNorms || []).forEach(rn => {
+          if (rn !== norm) delete keyPending[rn];
+        });
+        keyPending[norm] = ts;
+        pendingMap[storageKey] = keyPending;
+        setPendingAddsMap(pendingMap);
+
+        const tombMap = getTombstonesMap();
+        let keyTombs = Array.isArray(tombMap[storageKey]) ? tombMap[storageKey].filter(t => !(t.n === norm && t.t <= ts)) : [];
+        const newTombs = (replacedNorms || []).filter(rn => rn && rn !== norm).map(rn => ({ n: rn, t: ts }));
+        if (newTombs.length > 0) {
+          keyTombs = mergeEntryArrays(keyTombs, newTombs);
+        }
+        tombMap[storageKey] = keyTombs;
+        setTombstonesMap(tombMap);
+      }
+
+      function recordDeletion(storageKey, removedNorms, ts = Date.now()) {
+        const normSet = new Set((removedNorms || []).map(normalize).filter(s => s.length >= 2));
+        if (normSet.size === 0) return;
+
+        const pendingMap = getPendingAddsMap();
+        if (pendingMap[storageKey]) {
+          normSet.forEach(n => delete pendingMap[storageKey][n]);
+          if (Object.keys(pendingMap[storageKey]).length === 0) delete pendingMap[storageKey];
+          setPendingAddsMap(pendingMap);
+        }
+
+        const addMap = getAddsMap();
+        if (Array.isArray(addMap[storageKey])) {
+          addMap[storageKey] = addMap[storageKey].filter(item => !normSet.has(item.n) || item.t > ts);
+          setAddsMap(addMap);
+        }
+
+        const tombMap = getTombstonesMap();
+        const entries = Array.from(normSet).map(n => ({ n, t: ts }));
+        tombMap[storageKey] = mergeEntryArrays(tombMap[storageKey], entries);
+        setTombstonesMap(tombMap);
+
+        window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+        normSet.forEach(n => {
+          window._recentlyDeletedSnippets[n] = ts + 60000;
+        });
+      }
+
+      function clearPendingBefore(storageKey, syncTs) {
+        const pendingMap = getPendingAddsMap();
+        const keyPending = pendingMap[storageKey];
+        if (!keyPending) return;
+        let changed = false;
+        for (const [n, t] of Object.entries(keyPending)) {
+          if (typeof t !== 'number' || t <= syncTs) {
+            delete keyPending[n];
+            changed = true;
+          }
+        }
+        if (changed) {
+          if (Object.keys(keyPending).length === 0) delete pendingMap[storageKey];
+          setPendingAddsMap(pendingMap);
+        }
+      }
+
+      return {
+        normalize,
+        dedupeHighlightsList,
+        mergeEntryArrays,
+        entriesToMap,
+        areEntryArraysEqual,
+        getTombstonesMap,
+        setTombstonesMap,
+        getAddsMap,
+        setAddsMap,
+        getPendingAddsMap,
+        setPendingAddsMap,
+        recordAdd,
+        recordDeletion,
+        clearPendingBefore
+      };
+    })();
+  </script>
+
   <!-- Firebase Integration -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -718,118 +911,257 @@
       const db = getFirestore(app);
       const masteryDocRef = doc(db, "study_progress", "mastery");
 
+      let writeQueue = Promise.resolve();
+      let activeWrites = 0;
+      let latestDeferredSnapshot = null;
+
+      function enqueueWrite(taskFn) {
+        activeWrites++;
+        const run = writeQueue.then(taskFn, taskFn);
+        writeQueue = run.catch(() => {});
+        return run.finally(() => {
+          activeWrites = Math.max(0, activeWrites - 1);
+          if (activeWrites === 0 && latestDeferredSnapshot) {
+            const snap = latestDeferredSnapshot;
+            latestDeferredSnapshot = null;
+            processSnapshot(snap);
+          }
+        });
+      }
+
       window.StageGateSync = {
         saveScore: async (storageKey, score) => {
-          try {
-            await setDoc(masteryDocRef, { [storageKey]: score }, { merge: true });
-            return true;
-          } catch (err) {
-            console.warn("Firestore save error:", err);
-            return false;
-          }
+          return enqueueWrite(async () => {
+            try {
+              await setDoc(masteryDocRef, { [storageKey]: score }, { merge: true });
+              return true;
+            } catch (err) {
+              console.warn("Firestore save error:", err);
+              return false;
+            }
+          });
         },
-        saveHighlights: async (storageKey, list) => {
-          try {
-            await setDoc(masteryDocRef, { [storageKey]: list }, { merge: true });
-            return true;
-          } catch (err) {
-            console.warn("Firestore save highlights error:", err);
-            return false;
-          }
+        saveHighlights: async (storageKey, list, opTs = Date.now()) => {
+          return enqueueWrite(async () => {
+            try {
+              const helpers = window.StageGateSyncHelpers;
+              const cleanList = helpers ? helpers.dedupeHighlightsList(list) : list;
+              const payload = { [storageKey]: cleanList };
+              if (helpers) {
+                const tombMap = helpers.getTombstonesMap();
+                const addMap = helpers.getAddsMap();
+                payload.stage_gate_highlight_tombstones = {
+                  [storageKey]: Array.isArray(tombMap[storageKey]) ? tombMap[storageKey] : []
+                };
+                payload.stage_gate_highlight_adds = {
+                  [storageKey]: Array.isArray(addMap[storageKey]) ? addMap[storageKey] : []
+                };
+              }
+              await setDoc(masteryDocRef, payload, { merge: true });
+              if (helpers) {
+                helpers.clearPendingBefore(storageKey, opTs);
+              }
+              return true;
+            } catch (err) {
+              console.warn("Firestore save highlights error:", err);
+              return false;
+            }
+          });
         }
       };
 
-      // Realtime listener: syncs Firestore -> localStorage & updates UI live!
-      onSnapshot(masteryDocRef, (docSnap) => {
-        const firestoreData = docSnap.exists() ? docSnap.data() : {};
-        const localKeysToUpload = {};
+      function processSnapshot(docSnap) {
+        if (activeWrites > 0) {
+          latestDeferredSnapshot = docSnap;
+          return;
+        }
 
-        // 1. Proactive upload of local highlights that are newer or missing from Firestore
+        const firestoreData = docSnap.exists() ? docSnap.data() : {};
+        const helpers = window.StageGateSyncHelpers;
+        const serverUpdates = {};
+
+        const localTombMap = helpers.getTombstonesMap();
+        const remoteTombMap = (firestoreData.stage_gate_highlight_tombstones && typeof firestoreData.stage_gate_highlight_tombstones === 'object')
+          ? firestoreData.stage_gate_highlight_tombstones : {};
+        const localAddMap = helpers.getAddsMap();
+        const remoteAddMap = (firestoreData.stage_gate_highlight_adds && typeof firestoreData.stage_gate_highlight_adds === 'object')
+          ? firestoreData.stage_gate_highlight_adds : {};
+        const pendingAddMap = helpers.getPendingAddsMap();
+
+        const allHighlightKeys = new Set();
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('stage_gate_highlights_')) allHighlightKeys.add(k);
+        }
+        for (const k of Object.keys(firestoreData)) {
+          if (k.startsWith('stage_gate_highlights_')) allHighlightKeys.add(k);
+        }
+        for (const k of Object.keys(pendingAddMap)) {
+          if (k.startsWith('stage_gate_highlights_')) allHighlightKeys.add(k);
+        }
+
+        let changedScores = false;
+        let changedHighlights = false;
+        const isInitialSnapshot = !window.__hasReceivedInitialSnapshot;
+        window.__hasReceivedInitialSnapshot = true;
+
+        // 1. Sync mastery scores
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
           if (k && k.startsWith('stage_gate_mastery_')) {
             const rawVal = localStorage.getItem(k);
             if (!(k in firestoreData) && rawVal) {
-              localKeysToUpload[k] = parseInt(rawVal, 10) || rawVal;
-            }
-          } else if (k && k.startsWith('stage_gate_highlights_')) {
-            const rawVal = localStorage.getItem(k);
-            if (rawVal) {
-              try {
-                const localList = JSON.parse(rawVal);
-                if (Array.isArray(localList) && localList.length > 0) {
-                  const remoteList = Array.isArray(firestoreData[k]) ? firestoreData[k] : [];
-                  if (localList.length > remoteList.length || !(k in firestoreData)) {
-                    localKeysToUpload[k] = localList;
-                  }
-                }
-              } catch(e) {}
+              serverUpdates[k] = parseInt(rawVal, 10) || rawVal;
             }
           }
         }
-
-        if (Object.keys(localKeysToUpload).length > 0) {
-          setDoc(masteryDocRef, localKeysToUpload, { merge: true }).catch(console.warn);
-        }
-
-        // 2. Apply incoming Firestore data non-destructively (never let an empty/stale remote wipe local data!)
-        let changedScores = false;
-        let changedHighlights = false;
-        let isInitialSnapshot = !window.__hasReceivedInitialSnapshot;
-        window.__hasReceivedInitialSnapshot = true;
-        const recentDeletions = window._recentlyDeletedSnippets || {};
-        const now = Date.now();
-        for (const [snip, exp] of Object.entries(recentDeletions)) {
-          if (exp < now) delete recentDeletions[snip];
-        }
-
         for (const [key, val] of Object.entries(firestoreData)) {
           if (key.startsWith('stage_gate_mastery_')) {
             if (localStorage.getItem(key) !== val.toString()) {
               localStorage.setItem(key, val.toString());
               changedScores = true;
             }
-          } else if (key.startsWith('stage_gate_highlights_')) {
-            const incomingList = Array.isArray(val) ? val : [];
-            let localList = [];
-            try {
-              localList = JSON.parse(localStorage.getItem(key) || '[]');
-            } catch(e) {
-              localList = [];
-            }
-            if (!Array.isArray(localList)) localList = [];
-
-            // Ignore remote items if the user recently explicitly deleted them locally
-            const validIncoming = incomingList.filter(s => {
-              const norm = (s || '').replace(/\s+/g, ' ').trim();
-              return norm.length >= 2 && !recentDeletions[norm];
-            });
-
-            // Smart Merge: UNION of local and valid remote (Local highlights are NEVER lost!)
-            const merged = [...localList];
-            validIncoming.forEach(item => {
-              const normItem = (item || '').replace(/\s+/g, ' ').trim();
-              if (normItem.length >= 2) {
-                const exists = merged.some(m => (m || '').replace(/\s+/g, ' ').trim() === normItem);
-                if (!exists) merged.push(item);
-              }
-            });
-
-            // If local has items not yet on the server, queue them to upload to Firestore
-            if (merged.length > incomingList.length) {
-              localKeysToUpload[key] = merged;
-            }
-
-            const mergedStr = JSON.stringify(merged);
-            if (localStorage.getItem(key) !== mergedStr) {
-              localStorage.setItem(key, mergedStr);
-              changedHighlights = true;
-            }
           }
         }
 
-        if (Object.keys(localKeysToUpload).length > 0) {
-          setDoc(masteryDocRef, localKeysToUpload, { merge: true }).catch(console.warn);
+        // Clean expired volatile RAM deletions
+        const recentDeletions = window._recentlyDeletedSnippets || {};
+        const now = Date.now();
+        for (const [snip, exp] of Object.entries(recentDeletions)) {
+          if (exp < now) delete recentDeletions[snip];
+        }
+
+        const nextTombMap = {};
+        const nextAddMap = {};
+        let tombChangedOnServer = false;
+        let addChangedOnServer = false;
+
+        // 2. Reconcile highlight keys with persistent tombstones + subset deduplication
+        for (const key of allHighlightKeys) {
+          const mergedTombs = helpers.mergeEntryArrays(localTombMap[key], remoteTombMap[key]);
+          const pendingForKey = pendingAddMap[key] || {};
+          const pendingAsEntries = Object.entries(pendingForKey).map(([n, t]) => ({ n, t }));
+          const mergedAdds = helpers.mergeEntryArrays(
+            helpers.mergeEntryArrays(localAddMap[key], remoteAddMap[key]),
+            pendingAsEntries
+          );
+
+          const tombByNorm = helpers.entriesToMap(mergedTombs);
+          const addByNorm = helpers.entriesToMap(mergedAdds);
+
+          function isDead(rawStr) {
+            const norm = helpers.normalize(rawStr);
+            if (norm.length < 2) return true;
+            const addTs = addByNorm.get(norm) || 0;
+            if (recentDeletions[norm] && !(pendingForKey[norm] && pendingForKey[norm] >= now - 60000 && addTs > 0)) {
+              // If deleted more recently than added, treat as dead
+              const delExp = recentDeletions[norm];
+              if (delExp - 60000 > addTs) return true;
+            }
+            for (const [tNorm, tTs] of tombByNorm.entries()) {
+              if (tTs > addTs && (tNorm === norm || (norm.length >= 12 && tNorm.includes(norm)))) {
+                return true;
+              }
+            }
+            return false;
+          }
+
+          let localList = [];
+          try {
+            localList = JSON.parse(localStorage.getItem(key) || '[]');
+            if (!Array.isArray(localList)) localList = [];
+          } catch (e) {
+            localList = [];
+          }
+
+          const hasRemoteKey = (key in firestoreData);
+          const remoteList = hasRemoteKey && Array.isArray(firestoreData[key]) ? firestoreData[key] : [];
+
+          let candidateItems = [];
+          if (hasRemoteKey) {
+            // Firestore is authoritative for synced keys; merge any unsynced local pending additions
+            candidateItems = remoteList.filter(s => !isDead(s));
+            for (const pNorm of Object.keys(pendingForKey)) {
+              if (!isDead(pNorm)) {
+                candidateItems.push(pNorm);
+              }
+            }
+          } else {
+            // Key not yet on Firestore: preserve non-dead local items
+            candidateItems = localList.filter(s => !isDead(s));
+          }
+
+          const finalList = helpers.dedupeHighlightsList(candidateItems);
+
+          // Prune tombstones overridden by an equal or newer add
+          const prunedTombs = mergedTombs.filter(item => {
+            const aTs = addByNorm.get(item.n) || 0;
+            return item.t > aTs;
+          });
+
+          if (prunedTombs.length > 0) {
+            nextTombMap[key] = prunedTombs;
+          } else if (Array.isArray(remoteTombMap[key]) && remoteTombMap[key].length > 0) {
+            nextTombMap[key] = [];
+          }
+
+          if (mergedAdds.length > 0) {
+            nextAddMap[key] = mergedAdds;
+          } else if (Array.isArray(remoteAddMap[key]) && remoteAddMap[key].length > 0) {
+            nextAddMap[key] = [];
+          }
+
+          if (!helpers.areEntryArraysEqual(prunedTombs, remoteTombMap[key])) {
+            tombChangedOnServer = true;
+          }
+          if (!helpers.areEntryArraysEqual(mergedAdds, remoteAddMap[key])) {
+            addChangedOnServer = true;
+          }
+
+          const finalStr = JSON.stringify(finalList);
+          const curLocalRaw = localStorage.getItem(key);
+          const curLocalNorm = curLocalRaw || '[]';
+          if (curLocalNorm !== finalStr) {
+            if (finalList.length === 0 && !hasRemoteKey) {
+              localStorage.removeItem(key);
+            } else {
+              localStorage.setItem(key, finalStr);
+            }
+            changedHighlights = true;
+          }
+
+          const remoteNormJson = JSON.stringify(remoteList.map(s => helpers.normalize(s)));
+          const finalNormJson = JSON.stringify(finalList.map(s => helpers.normalize(s)));
+          if ((hasRemoteKey && remoteNormJson !== finalNormJson) || (!hasRemoteKey && finalList.length > 0)) {
+            serverUpdates[key] = finalList;
+          } else if (hasRemoteKey && Object.keys(pendingForKey).length > 0) {
+            helpers.clearPendingBefore(key, now);
+          }
+        }
+
+        helpers.setTombstonesMap(nextTombMap);
+        helpers.setAddsMap(nextAddMap);
+
+        if (tombChangedOnServer) {
+          serverUpdates.stage_gate_highlight_tombstones = nextTombMap;
+        }
+        if (addChangedOnServer) {
+          serverUpdates.stage_gate_highlight_adds = nextAddMap;
+        }
+
+        if (Object.keys(serverUpdates).length > 0) {
+          enqueueWrite(async () => {
+            try {
+              await setDoc(masteryDocRef, serverUpdates, { merge: true });
+              for (const k of Object.keys(serverUpdates)) {
+                if (k.startsWith('stage_gate_highlights_')) {
+                  helpers.clearPendingBefore(k, now);
+                }
+              }
+            } catch (err) {
+              console.warn("Firestore sync heal error:", err);
+            }
+          });
         }
 
         if (changedScores && typeof window.refreshCurrentTopicVisuals === 'function') {
@@ -846,6 +1178,11 @@
             window.loadHardRevision(false);
           }
         }
+      }
+
+      // Realtime listener: syncs Firestore -> localStorage & updates UI live!
+      onSnapshot(masteryDocRef, (docSnap) => {
+        processSnapshot(docSnap);
       }, (err) => {
         console.warn("Firestore snapshot error:", err);
       });
@@ -856,7 +1193,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795540597221"></script>
+  <script src="topics-data.js?v=1795656086257"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1363,6 +1700,8 @@
     async function removeSnippet(topicId, conceptNum, snippet, shouldReloadHardRevision = true) {
       if (!topicId || !conceptNum || !snippet) return false;
       const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+      const helpers = window.StageGateSyncHelpers;
+      const opTs = Date.now();
       let list = [];
       try {
         list = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -1373,23 +1712,34 @@
       const cleanSnippet = snippet.replace(/\s+/g, ' ').trim();
 
       // 1. Enter saving/removing state
+      activeHighlightMutations++;
       isSavingHighlight = true;
       setSyncStatus('saving', 'Removing highlight...');
 
-      // Track recent deletion to prevent Firestore snapshot race condition
-      window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
-      window._recentlyDeletedSnippets[cleanSnippet] = Date.now() + 30000;
-
-      // Prune exact match and any overlapping/substring match so stacked duplicates are completely wiped!
+      // Collect every matching or overlapping item being removed so ALL are tombstoned
+      const removedNorms = [cleanSnippet];
       list = list.filter(s => {
         const norm = (s || '').replace(/\s+/g, ' ').trim();
         if (!norm) return false;
-        if (norm === cleanSnippet) return false;
-        if (cleanSnippet.length > 8 && norm.length > 8) {
-          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) return false;
+        let shouldRemove = (norm === cleanSnippet);
+        if (!shouldRemove && cleanSnippet.length > 8 && norm.length > 8) {
+          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) {
+            shouldRemove = true;
+          }
+        }
+        if (shouldRemove) {
+          if (!removedNorms.includes(norm)) removedNorms.push(norm);
+          return false;
         }
         return true;
       });
+
+      if (helpers) {
+        helpers.recordDeletion(storageKey, removedNorms, opTs);
+      } else {
+        window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+        removedNorms.forEach(rn => { window._recentlyDeletedSnippets[rn] = opTs + 60000; });
+      }
 
       localStorage.setItem(storageKey, JSON.stringify(list));
 
@@ -1421,12 +1771,12 @@
       let saveOk = false;
       try {
         if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-          saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+          saveOk = await window.StageGateSync.saveHighlights(storageKey, list, opTs);
         } else {
           for (let attempt = 0; attempt < 8; attempt++) {
             await new Promise(r => setTimeout(r, 350));
             if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-              saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+              saveOk = await window.StageGateSync.saveHighlights(storageKey, list, opTs);
               break;
             }
           }
@@ -1442,7 +1792,8 @@
         setSyncStatus('error', 'Removed locally');
       }
 
-      isSavingHighlight = false;
+      activeHighlightMutations = Math.max(0, activeHighlightMutations - 1);
+      isSavingHighlight = activeHighlightMutations > 0;
       return saveOk;
     }
 
@@ -1593,6 +1944,7 @@
     }
 
     let isSavingHighlight = false;
+    let activeHighlightMutations = 0;
 
     window.addEventListener('beforeunload', (e) => {
       if (isSavingHighlight) {
@@ -1670,7 +2022,11 @@
         return;
       }
 
+      const helpers = window.StageGateSyncHelpers;
+      const opTs = Date.now();
+
       // 1. Immediately switch button to visible Loading State
+      activeHighlightMutations++;
       isSavingHighlight = true;
       setSyncStatus('saving', 'Saving highlight...');
       if (triggerHighlightBtn) {
@@ -1707,7 +2063,7 @@
       // 2. Immediately highlight in DOM
       highlightRange(targetRange, topicId, conceptNum, cleanSnippet);
 
-      // 3. Persist to localStorage
+      // 3. Persist to localStorage (and tombstone any narrower overlapping fragments being replaced)
       let list = [];
       try {
         list = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -1715,18 +2071,24 @@
         list = [];
       }
 
+      const replacedNorms = [];
       list = list.filter(s => {
         const norm = (s || '').replace(/\s+/g, ' ').trim();
         if (!norm) return false;
         if (norm === cleanSnippet) return false;
         if (cleanSnippet.length > 8 && norm.length > 8) {
-          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) return false;
+          if (cleanSnippet.includes(norm) || norm.includes(cleanSnippet)) {
+            replacedNorms.push(norm);
+            return false;
+          }
         }
         return true;
       });
 
       list.push(cleanSnippet);
-      if (window._recentlyDeletedSnippets) {
+      if (helpers) {
+        helpers.recordAdd(storageKey, cleanSnippet, replacedNorms, opTs);
+      } else if (window._recentlyDeletedSnippets) {
         delete window._recentlyDeletedSnippets[cleanSnippet];
       }
       localStorage.setItem(storageKey, JSON.stringify(list));
@@ -1742,13 +2104,13 @@
       let saveOk = false;
       try {
         if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-          saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+          saveOk = await window.StageGateSync.saveHighlights(storageKey, list, opTs);
         } else {
           // If Firebase is still initializing, wait up to 3 seconds
           for (let attempt = 0; attempt < 8; attempt++) {
             await new Promise(r => setTimeout(r, 350));
             if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-              saveOk = await window.StageGateSync.saveHighlights(storageKey, list);
+              saveOk = await window.StageGateSync.saveHighlights(storageKey, list, opTs);
               break;
             }
           }
@@ -1767,12 +2129,13 @@
           <span class="text-black font-bold">Saved!</span>
         `;
       }
-      setSyncStatus('saved', 'Synced to Cloud!');
+      setSyncStatus('saved', saveOk ? 'Synced to Cloud!' : 'Saved locally');
 
       // Keep "Saved!" visible for 700ms so user has concrete visual confirmation
       await new Promise(r => setTimeout(r, 700));
 
-      isSavingHighlight = false;
+      activeHighlightMutations = Math.max(0, activeHighlightMutations - 1);
+      isSavingHighlight = activeHighlightMutations > 0;
       if (triggerHighlightBtn) {
         triggerHighlightBtn.disabled = false;
         triggerHighlightBtn.style.pointerEvents = 'auto';
@@ -1805,6 +2168,7 @@
       }
 
       // 1. Immediately switch button to visible Loading State: "Removing..."
+      activeHighlightMutations++;
       isSavingHighlight = true;
       setSyncStatus('saving', 'Removing highlight...');
       if (triggerHighlightBtn) {
@@ -1840,7 +2204,8 @@
       await new Promise(r => setTimeout(r, 700));
 
       // 4. Reset button back to default Highlight state and hide
-      isSavingHighlight = false;
+      activeHighlightMutations = Math.max(0, activeHighlightMutations - 1);
+      isSavingHighlight = activeHighlightMutations > 0;
       setFloatingBtnToHighlightMode();
       hideFloatingBtn();
       if (window.getSelection()) {
@@ -2112,7 +2477,10 @@
     }
 
     function applyAllConceptHighlights(topicId) {
+      const helpers = window.StageGateSyncHelpers;
+      const normFn = helpers ? helpers.normalize : (s => (s || '').replace(/\s+/g, ' ').trim());
       const h2Elements = Array.from(contentContainer.querySelectorAll('h2'));
+
       h2Elements.forEach((h2) => {
         const match = h2.textContent.match(/^(\d+)\./);
         if (!match) return;
@@ -2125,16 +2493,30 @@
         } catch (e) {
           highlights = [];
         }
-        if (!Array.isArray(highlights) || highlights.length === 0) return;
+        if (!Array.isArray(highlights)) highlights = [];
 
-        // Deduplicate before applying
-        const cleanHighlights = [];
-        highlights.forEach(h => {
-          const norm = (h || '').replace(/\s+/g, ' ').trim();
-          if (norm.length >= 2 && !cleanHighlights.includes(norm)) {
-            cleanHighlights.push(norm);
+        const cleanList = helpers ? helpers.dedupeHighlightsList(highlights) : highlights;
+        if (cleanList.length !== highlights.length && localStorage.getItem(storageKey) !== null) {
+          localStorage.setItem(storageKey, JSON.stringify(cleanList));
+        }
+
+        const cleanHighlights = cleanList.map(normFn).filter(s => s.length >= 2);
+        const cleanSet = new Set(cleanHighlights);
+
+        // Unwrap any DOM marks that were deleted remotely or deduplicated away
+        const domMarks = Array.from(contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`));
+        domMarks.forEach(m => {
+          const mSnip = normFn(m.getAttribute('data-snippet'));
+          if (!mSnip || !cleanSet.has(mSnip)) {
+            const parent = m.parentNode;
+            if (parent) {
+              while (m.firstChild) parent.insertBefore(m.firstChild, m);
+              parent.removeChild(m);
+            }
           }
         });
+
+        if (cleanHighlights.length === 0) return;
 
         cleanHighlights.forEach((snippet) => {
           // If already highlighted in DOM for this concept, skip to avoid duplicate work
@@ -2158,28 +2540,27 @@
 
     async function clearConceptHighlights(topicId, conceptNum) {
       const highlightKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
-      window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+      const helpers = window.StageGateSyncHelpers;
+      const opTs = Date.now();
       let oldList = [];
       try { oldList = JSON.parse(localStorage.getItem(highlightKey) || '[]'); } catch(e) {}
-      if (Array.isArray(oldList)) {
-        oldList.forEach(s => {
-          const norm = (s || '').replace(/\s+/g, ' ').trim();
-          if (norm) window._recentlyDeletedSnippets[norm] = Date.now() + 30000;
-        });
-      }
-      localStorage.removeItem(highlightKey);
 
+      if (helpers && Array.isArray(oldList) && oldList.length > 0) {
+        helpers.recordDeletion(highlightKey, oldList, opTs);
+      } else {
+        window._recentlyDeletedSnippets = window._recentlyDeletedSnippets || {};
+        if (Array.isArray(oldList)) {
+          oldList.forEach(s => {
+            const norm = (s || '').replace(/\s+/g, ' ').trim();
+            if (norm) window._recentlyDeletedSnippets[norm] = opTs + 60000;
+          });
+        }
+      }
+      localStorage.setItem(highlightKey, '[]');
+
+      activeHighlightMutations++;
       isSavingHighlight = true;
       setSyncStatus('saving', 'Clearing highlights...');
-
-      let saveOk = false;
-      try {
-        if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-          saveOk = await window.StageGateSync.saveHighlights(highlightKey, []);
-        }
-      } catch (err) {
-        console.warn("Clear highlights error:", err);
-      }
 
       const marks = contentContainer.querySelectorAll(`mark.exam-focus-highlight[data-concept="${conceptNum}"]`);
       marks.forEach((m) => {
@@ -2199,12 +2580,22 @@
         window.loadHardRevision(false);
       }
 
+      let saveOk = false;
+      try {
+        if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+          saveOk = await window.StageGateSync.saveHighlights(highlightKey, [], opTs);
+        }
+      } catch (err) {
+        console.warn("Clear highlights error:", err);
+      }
+
       if (saveOk) {
         setSyncStatus('saved', 'Cleared & Synced!');
       } else {
         setSyncStatus('error', 'Cleared locally');
       }
-      isSavingHighlight = false;
+      activeHighlightMutations = Math.max(0, activeHighlightMutations - 1);
+      isSavingHighlight = activeHighlightMutations > 0;
     }
 
     window.refreshCurrentTopicHighlights = function() {
@@ -2217,6 +2608,7 @@
     window.isHardRevisionActive = false;
 
     function getAllHighlightsData() {
+      const helpers = window.StageGateSyncHelpers;
       const result = [];
       let totalCount = 0;
 
@@ -2244,22 +2636,11 @@
             list = [];
           }
           if (Array.isArray(list) && list.length > 0) {
-            // Preserve every distinct highlight, only filtering exact duplicates
-            const cleanList = [];
-            list.forEach(raw => {
-              const item = (raw || '').trim();
-              if (item.length >= 2) {
-                const normItem = item.replace(/\s+/g, ' ');
-                const exists = cleanList.some(existing => existing.replace(/\s+/g, ' ') === normItem);
-                if (!exists) {
-                  cleanList.push(item);
-                }
-              }
-            });
+            const cleanList = helpers ? helpers.dedupeHighlightsList(list) : list;
 
             if (cleanList.length !== list.length) {
               localStorage.setItem(storageKey, JSON.stringify(cleanList));
-              if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+              if (window.__hasReceivedInitialSnapshot && window.StageGateSync && window.StageGateSync.saveHighlights) {
                 window.StageGateSync.saveHighlights(storageKey, cleanList);
               }
             }
@@ -2426,10 +2807,19 @@
       // 2. Remove from storage & await cloud sync
       await removeSnippet(topicId, conceptNum, snippet, false);
 
-      if (!card) {
+      if (!card || !card.isConnected) {
         loadHardRevision(false);
         return;
       }
+
+      // Also prune any other sibling cards in this concept whose stored highlight was removed (e.g., overlapping subsets)
+      const storageKey = `stage_gate_highlights_${topicId}_${conceptNum}`;
+      let remainingNorms = new Set();
+      try {
+        const cur = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const normFn = window.StageGateSyncHelpers ? window.StageGateSyncHelpers.normalize : (s => (s || '').replace(/\s+/g, ' ').trim());
+        remainingNorms = new Set(cur.map(normFn));
+      } catch (e) {}
 
       // 3. Briefly show 'Removed' checkmark on button
       if (btn) {
@@ -2465,6 +2855,20 @@
         const topicCard = card.closest('.topic-card');
 
         card.remove();
+
+        // Remove any sibling cards in the same concept block that are no longer in localStorage
+        if (snippetList) {
+          const normFn = window.StageGateSyncHelpers ? window.StageGateSyncHelpers.normalize : (s => (s || '').replace(/\s+/g, ' ').trim());
+          snippetList.querySelectorAll('.snippet-card').forEach(sibCard => {
+            const sibBtn = sibCard.querySelector('.remove-revision-snippet-btn');
+            if (sibBtn) {
+              const sibSnip = normFn(sibBtn.getAttribute('data-snippet'));
+              if (sibSnip && !remainingNorms.has(sibSnip)) {
+                sibCard.remove();
+              }
+            }
+          });
+        }
 
         // If no more snippets in this concept, prune concept block
         if (snippetList && snippetList.querySelectorAll('.snippet-card').length === 0) {
@@ -2867,13 +3271,21 @@
           }
 
           let restoredCount = 0;
+          const helpers = window.StageGateSyncHelpers;
+          const restoreTs = Date.now();
           for (const [key, snippets] of Object.entries(keysToSave)) {
             if (key.startsWith('stage_gate_highlights_') && Array.isArray(snippets) && snippets.length > 0) {
-              localStorage.setItem(key, JSON.stringify(snippets));
-              if (window.StageGateSync && window.StageGateSync.saveHighlights) {
-                window.StageGateSync.saveHighlights(key, snippets);
+              const cleaned = helpers ? helpers.dedupeHighlightsList(snippets) : snippets;
+              if (cleaned.length > 0) {
+                if (helpers) {
+                  cleaned.forEach(s => helpers.recordAdd(key, s, [], restoreTs));
+                }
+                localStorage.setItem(key, JSON.stringify(cleaned));
+                if (window.StageGateSync && window.StageGateSync.saveHighlights) {
+                  window.StageGateSync.saveHighlights(key, cleaned, restoreTs);
+                }
+                restoredCount++;
               }
-              restoredCount++;
             }
           }
 
