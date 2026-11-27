@@ -3,25 +3,25 @@
 > **Shared Template (`0/X` format):** This file stays reset at `0` on GitHub so anyone downloading the repository can run drills from scratch. Your personal scores and question history are stored locally in `sql_drills/DRILLS_MATRIX.local.md` (gitignored and never pushed).
 
 ## 1. Topic: SELECT Statement
-- [ ] **1.1 Basic Projection (`SELECT` with `*` vs. specific columns, statement termination `;`)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.1 Basic Projection (`SELECT` with `*` vs. specific columns, statement termination `;`)** | Practical: 0/0 | MCQ: 0/1
   - *History*: (None yet)
-- [ ] **1.2 Column Aliases & Quote Rules (Renaming headers, optional `AS`, double quotes for case/spaces, single-quote trap)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.2 Column Aliases & Quote Rules (Renaming headers, optional `AS`, double quotes for case/spaces, single-quote trap)** | Practical: 0/0 | MCQ: 0/3
   - *History*: (None yet)
-- [ ] **1.3 Arithmetic Operators & NULL Propagation (Math operations `+ - * /` and `NULL` arithmetic rules)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.3 Arithmetic Operators & NULL Propagation (Math operations `+ - * /` and `NULL` arithmetic rules)** | Practical: 0/0 | MCQ: 0/2
   - *History*: (None yet)
-- [ ] **1.4 Handling NULL in Arithmetic with `NVL()` (Datatype compatibility, safeguarding numeric calculations)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.4 Handling NULL in Arithmetic with `NVL()` (Datatype compatibility, safeguarding numeric calculations)** | Practical: 0/0 | MCQ: 0/2
   - *History*: (None yet)
-- [ ] **1.5 String Concatenation (`||`) & Text Literals (Combining columns and single-quoted strings)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.5 String Concatenation (`||`) & Text Literals (Combining columns and single-quoted strings)** | Practical: 0/0 | MCQ: 0/1
   - *History*: (None yet)
-- [ ] **1.6 The Oracle `DUAL` Table (Mandatory `FROM` requirement, `DUMMY` column, and function/math evaluation)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.6 The Oracle `DUAL` Table (Mandatory `FROM` requirement, `DUMMY` column, and function/math evaluation)** | Practical: 0/0 | MCQ: 0/2
   - *History*: (None yet)
-- [ ] **1.7 Duplicate Elimination with `DISTINCT` (Multi-column uniqueness, syntax placement right after `SELECT`)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **1.7 Duplicate Elimination with `DISTINCT` (Multi-column uniqueness, syntax placement right after `SELECT`)** | Practical: 0/0 | MCQ: 0/2
   - *History*: (None yet)
 
 ## 2. Topic: WHERE Clause
-- [ ] **2.1 Basic Filtering & Comparison Operators (`=, >, <, >=, <=, <>, !=`)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **2.1 Basic Filtering & Comparison Operators (`=, >, <, >=, <=, <>, !=`)** | Practical: 0/0 | MCQ: 0/1
   - *History*: (None yet)
-- [ ] **2.2 Text and Date Literal Filtering (Strict case sensitivity and single-quote formatting)** | Practical: 0/41 | MCQ: 0/180
+- [ ] **2.2 Text and Date Literal Filtering (Strict case sensitivity and single-quote formatting)** | Practical: 0/0 | MCQ: 0/2
   - *History*: (None yet)
 - [ ] **2.3 Logical Operators (`AND` & `OR` evaluation)** | Practical: 0/0 | MCQ: 0/1
   - *History*: (None yet)
