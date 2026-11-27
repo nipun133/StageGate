@@ -6,7 +6,7 @@
 - **SUM(col)**: Calculates the total sum (numbers only).
 - **MIN(col)**: Returns the smallest/minimum value across numbers (lowest number), characters (alphabetically first, `A → Z`), and dates (oldest/earliest date).
 - **MAX(col)**: Returns the largest/maximum value across numbers (highest number), characters (alphabetically last, `Z → A`), and dates (newest/latest date).
-- **COUNT(col)**: Counts values or rows.
+- **COUNT(col) / COUNT(*)**: `COUNT(col)` counts all non-`NULL` values (including duplicates); `COUNT(*)` counts every row (including `NULL`s and duplicates).
 - Example: `SELECT MAX(salary), MAX(hire_date) FROM employees;`
 
 ## 2. Group Functions & NULL Handling
