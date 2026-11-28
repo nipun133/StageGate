@@ -1395,7 +1395,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795852982367"></script>
+  <script src="topics-data.js?v=1795853203915"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1826,10 +1826,9 @@
         let text = '# Stage Gate - 41 Practical Questions & Solutions\n\n';
         practicals.forEach(p => {
           text += `## Question ${p.slot} (${p.category} - Concept ${p.conceptId})\n\n`;
-          text += `### Task\n${p.prompt}\n\n`;
           if (p.schema) text += `### Schema\n\`\`\`text\n${p.schema}\n\`\`\`\n\n`;
-          text += `### Oracle SQL Solution\n\`\`\`sql\n${p.solution}\n\`\`\`\n\n`;
-          text += `### Explanation & Trap\n${p.trap}\n\n---\n\n`;
+          text += `### Question\n${p.prompt}\n\n`;
+          text += `### Oracle SQL Solution\n\`\`\`sql\n${p.solution}\n\`\`\`\n\n---\n\n`;
         });
         navigator.clipboard.writeText(text);
       } else {
@@ -4079,9 +4078,12 @@
 
       const cardsHtml = practicals.map(p => {
         const safePrompt = marked ? marked.parse(p.prompt) : p.prompt;
-        const safeTrap = marked ? marked.parse(p.trap) : p.trap;
         const escapedSolution = (p.solution || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const cleanSchema = (p.schema || '').replace(/`/g, '');
+        const cleanSchema = (p.schema || '')
+          .split('\n')
+          .map(line => line.trim().replace(/^`|`$/g, ''))
+          .filter(Boolean)
+          .join('\n');
 
         return `
           <div class="rounded-xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-5 shadow space-y-3.5" id="drill-card-${p.slot}">
@@ -4107,29 +4109,25 @@
               </button>
             </div>
 
-            <!-- Question Task -->
+            <!-- 1. Schema First (Neutral text, clean, no gap) -->
+            ${cleanSchema ? `
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Schema</div>
+              <div class="rounded-lg bg-zinc-900/70 border border-zinc-800 px-3 py-2 text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed">${cleanSchema}</div>
+            </div>` : ''}
+
+            <!-- 2. Question / Requirement Second -->
             <div>
               <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Question</div>
               <div class="text-sm text-zinc-200 leading-relaxed font-normal prose prose-invert max-w-none">${safePrompt}</div>
             </div>
 
-            <!-- Schema -->
-            <div class="bg-zinc-900/50 rounded-lg p-2.5 border border-zinc-800/60 text-xs font-mono text-emerald-400/90 whitespace-pre-wrap break-all">
-              <span class="text-zinc-500 font-sans font-semibold mr-1.5 uppercase text-[10px]">Schema:</span>${cleanSchema}
-            </div>
-
-            <!-- Solution -->
+            <!-- 3. Oracle SQL Solution -->
             <div>
               <div class="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90 mb-1">Oracle SQL Solution</div>
               <div class="rounded-lg overflow-hidden border border-zinc-800 bg-[#0d1117]">
                 <pre class="p-3 text-xs font-mono overflow-x-auto text-zinc-100"><code class="language-sql">${escapedSolution}</code></pre>
               </div>
-            </div>
-
-            <!-- Explanation & Trap -->
-            <div class="rounded-lg bg-zinc-900/50 border border-zinc-800 p-3 text-xs text-zinc-300 leading-relaxed">
-              <div class="font-semibold text-amber-400/90 text-xs mb-1">Explanation & Exam Trap:</div>
-              <div class="prose prose-invert max-w-none text-xs text-zinc-300 leading-relaxed">${safeTrap}</div>
             </div>
 
           </div>
