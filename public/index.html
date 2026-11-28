@@ -593,6 +593,14 @@
         <!-- Live Cloud Sync Status Indicator -->
         <div id="cloudSyncIndicator" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-300 shrink-0"></div>
 
+        <button id="headerPracticalsBtn" type="button" title="Open 41 Practical Coding Drills" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 text-xs font-semibold transition cursor-pointer shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span class="hidden sm:inline">Practicals</span>
+          <span class="font-mono text-[10px] font-bold bg-amber-500/20 px-1.5 py-0.2 rounded-full border border-amber-500/30">41</span>
+        </button>
         <button id="headerHardRevisionBtn" type="button" title="Open Hard Revision Sheet" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-semibold transition cursor-pointer shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="m9 11-6 6v3h3l6-6"/>
@@ -1370,7 +1378,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795850809400"></script>
+  <script src="topics-data.js?v=1795851905776"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1410,6 +1418,25 @@
 
     function renderNav(filter = '') {
       topicsNav.innerHTML = '';
+
+      // Update sidebar Practical Drills button active state
+      const sidebarPracticals = document.getElementById('sidebarPracticalsBtn');
+      if (sidebarPracticals) {
+        if (window.isPracticalsActive) {
+          sidebarPracticals.className = "w-full text-left px-3 py-2.5 mt-2 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-amber-950/70 border border-amber-400 text-white shadow-lg shadow-amber-950/40 cursor-pointer";
+        } else {
+          sidebarPracticals.className = "w-full text-left px-3 py-2.5 mt-2 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-gradient-to-r from-amber-950/40 via-zinc-900 to-zinc-900/60 border border-amber-500/30 text-white hover:border-amber-400 group cursor-pointer shadow-md";
+        }
+      }
+
+      const headerPracticals = document.getElementById('headerPracticalsBtn');
+      if (headerPracticals) {
+        if (window.isPracticalsActive) {
+          headerPracticals.className = "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/30 border border-amber-400 text-amber-300 text-xs font-semibold transition cursor-pointer shrink-0 shadow-sm";
+        } else {
+          headerPracticals.className = "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 text-xs font-semibold transition cursor-pointer shrink-0";
+        }
+      }
 
       // Update sidebar Hard Revision button active state
       const sidebarHardRev = document.getElementById('sidebarHardRevisionBtn');
@@ -1624,6 +1651,7 @@
     function loadTopic(index, isFromJump = false) {
       if (index < 0 || index >= topics.length) return;
       window.isHardRevisionActive = false;
+      window.isPracticalsActive = false;
       if (!isFromJump) {
         hideRevisionReturnButton();
         window.lastRevisionJump = null;
@@ -3963,6 +3991,262 @@
         });
       }
     })();
+
+    
+    let currentPracticalCategory = 'All';
+    let practicalSearchQuery = '';
+
+    window.setPracticalCategory = function(cat) {
+      currentPracticalCategory = cat;
+      renderPracticalsContent();
+    };
+
+    window.copyCode = function(slot, ev) {
+      const practicals = window.STAGE_GATE_PRACTICALS || [];
+      const p = practicals.find(item => item.slot === slot);
+      if (!p) return;
+      navigator.clipboard.writeText(p.solution).then(() => {
+        const btn = ev.currentTarget || ev.target.closest('button');
+        if (btn) {
+          const span = btn.querySelector('span');
+          const oldText = span ? span.textContent : '';
+          if (span) span.textContent = 'Copied!';
+          setTimeout(() => {
+            if (span) span.textContent = oldText || 'Copy SQL';
+          }, 1500);
+        }
+      }).catch(err => console.error('Copy failed:', err));
+    };
+
+    function loadPracticalsView() {
+      window.isHardRevisionActive = false;
+      window.isPracticalsActive = true;
+      hideRevisionReturnButton();
+
+      try {
+        localStorage.setItem('stage_gate_active_view', 'practicals');
+        if (history.replaceState) {
+          history.replaceState(null, '', '#practicals');
+        } else {
+          location.hash = 'practicals';
+        }
+      } catch (e) {}
+
+      topicBadge.classList.remove('hidden');
+      topicBadge.textContent = 'Oracle SQL Coding';
+      currentTopicTitle.textContent = '41 Practical Drills & Reference Solutions';
+
+      if (downloadRevisionBtn) {
+        downloadRevisionBtn.classList.add('hidden');
+        downloadRevisionBtn.classList.remove('flex');
+      }
+
+      renderNav();
+      renderPracticalsContent();
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function renderPracticalsContent() {
+      const practicals = window.STAGE_GATE_PRACTICALS || [];
+      const categories = ['All', 'WHERE Clause', 'Functions & Dates', 'Aggregation', 'Joins', 'Subqueries', 'Set Operators', 'DML & MERGE', 'DDL & Views', 'Window Functions'];
+
+      let filtered = practicals;
+      if (currentPracticalCategory !== 'All') {
+        filtered = filtered.filter(p => p.category === currentPracticalCategory);
+      }
+      if (practicalSearchQuery) {
+        const q = practicalSearchQuery.toLowerCase();
+        filtered = filtered.filter(p => 
+          (p.slot && p.slot.toLowerCase().includes(q)) ||
+          (p.conceptId && p.conceptId.toLowerCase().includes(q)) ||
+          (p.conceptTitle && p.conceptTitle.toLowerCase().includes(q)) ||
+          (p.prompt && p.prompt.toLowerCase().includes(q)) ||
+          (p.schema && p.schema.toLowerCase().includes(q)) ||
+          (p.solution && p.solution.toLowerCase().includes(q)) ||
+          (p.trap && p.trap.toLowerCase().includes(q))
+        );
+      }
+
+      const pillsHtml = categories.map(cat => {
+        const count = cat === 'All' ? practicals.length : practicals.filter(p => p.category === cat).length;
+        const isActive = cat === currentPracticalCategory;
+        return `
+          <button 
+            type="button" 
+            onclick="setPracticalCategory('${cat}')" 
+            class="px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 ${isActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'}"
+          >
+            ${cat} (${count})
+          </button>
+        `;
+      }).join('');
+
+      const cardsHtml = filtered.length === 0 ? `
+        <div class="py-12 text-center text-zinc-500 text-sm bg-zinc-900/30 rounded-2xl border border-zinc-800">
+          No practical drills match your search or filter.
+        </div>
+      ` : filtered.map(p => {
+        const safePrompt = marked ? marked.parse(p.prompt) : p.prompt;
+        const safeTrap = marked ? marked.parse(p.trap) : p.trap;
+        const escapedSolution = (p.solution || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const cleanSchema = (p.schema || '').replace(/`/g, '');
+
+        return `
+          <div class="rounded-2xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-5 transition hover:border-zinc-700/80 shadow-md space-y-4" id="drill-card-${p.slot}">
+            
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/70 pb-3">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono text-xs font-bold">
+                  Slot ${p.slot}
+                </span>
+                <span class="px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-xs">
+                  ${p.category}
+                </span>
+                <span class="text-xs font-medium text-zinc-400 font-mono">
+                  Concept ${p.conceptId}
+                </span>
+              </div>
+
+              <button 
+                type="button" 
+                onclick="copyCode('${p.slot}', event)" 
+                class="copy-sql-btn px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-mono transition flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy SQL</span>
+              </button>
+            </div>
+
+            <div>
+              <div class="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-1">Business Requirement & Task</div>
+              <div class="text-sm text-zinc-200 leading-relaxed font-normal prose prose-invert max-w-none">${safePrompt}</div>
+            </div>
+
+            <div class="bg-zinc-900/60 rounded-xl p-3 border border-zinc-800/60">
+              <div class="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                </svg>
+                <span>Table Schema</span>
+              </div>
+              <div class="text-xs font-mono text-emerald-400/90 whitespace-pre-wrap break-all">${cleanSchema}</div>
+            </div>
+
+            <div>
+              <div class="text-[11px] uppercase tracking-wider font-semibold text-amber-400/90 mb-1.5 flex items-center justify-between">
+                <span class="flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                  <span>Reference Oracle SQL Solution</span>
+                </span>
+              </div>
+              <div class="relative group rounded-xl overflow-hidden border border-zinc-800">
+                <pre class="p-3.5 bg-[#0d1117] text-xs font-mono overflow-x-auto text-zinc-100"><code class="language-sql">${escapedSolution}</code></pre>
+              </div>
+            </div>
+
+            <div class="rounded-xl bg-amber-500/5 border border-amber-500/20 p-3.5 text-xs text-amber-200/90 leading-relaxed">
+              <div class="font-bold text-amber-400 text-xs flex items-center gap-1.5 mb-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Exam Trap & Solution Breakdown</span>
+              </div>
+              <div class="prose prose-invert max-w-none text-xs text-amber-200/90 leading-relaxed">${safeTrap}</div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
+      contentContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto space-y-6 pb-16">
+          
+          <div class="rounded-2xl bg-gradient-to-r from-amber-950/30 via-zinc-900/70 to-zinc-950 border border-amber-500/30 p-5 sm:p-6 shadow-xl space-y-2">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-base border border-amber-500/40">
+                ⚡
+              </div>
+              <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight m-0 border-0 p-0">
+                41 SQL Practical Coding Drills & Reference Solutions
+              </h1>
+            </div>
+            <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed m-0">
+              Master the exact patterns tested in Deloitte Stage Gate's 2–3 big coding questions. Study every business scenario, schema relationship, Oracle-specific formula, and trap check at your own pace.
+            </p>
+          </div>
+
+          <div class="space-y-3 sticky top-14 z-30 bg-black/95 backdrop-blur-md py-2 border-b border-zinc-800">
+            <div class="relative w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input 
+                id="practicalsSearchInput" 
+                type="text" 
+                value="${practicalSearchQuery}" 
+                placeholder="Search drills by keyword (e.g., 'anti-join', 'PARTITION BY', 'MERGE', 'DENSE_RANK')..." 
+                class="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition shadow-inner"
+              >
+            </div>
+
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              ${pillsHtml}
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            ${cardsHtml}
+          </div>
+
+        </div>
+      `;
+
+      const sInput = document.getElementById('practicalsSearchInput');
+      if (sInput) {
+        sInput.addEventListener('input', (e) => {
+          practicalSearchQuery = e.target.value.trim();
+          renderPracticalsContent();
+          const nextInput = document.getElementById('practicalsSearchInput');
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.selectionStart = nextInput.selectionEnd = nextInput.value.length;
+          }
+        });
+      }
+
+      if (window.hljs) {
+        contentContainer.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+      }
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    }
+
+    const headerPracticalsBtn = document.getElementById('headerPracticalsBtn');
+    const sidebarPracticalsBtn = document.getElementById('sidebarPracticalsBtn');
+
+    if (headerPracticalsBtn) {
+      headerPracticalsBtn.addEventListener('click', () => {
+        loadPracticalsView();
+      });
+    }
+    if (sidebarPracticalsBtn) {
+      sidebarPracticalsBtn.addEventListener('click', () => {
+        loadPracticalsView();
+        closeSidebar();
+      });
+    }
 
     window.addEventListener('hashchange', () => {
       const hash = (location.hash || '').replace(/^#/, '').trim();

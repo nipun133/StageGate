@@ -44,10 +44,16 @@ if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
 }
 
+const practicalsPath = path.join(__dirname, 'sql_drills', 'practicals_master.json');
+let practicalsData = [];
+if (fs.existsSync(practicalsPath)) {
+  practicalsData = JSON.parse(fs.readFileSync(practicalsPath, 'utf8'));
+}
+
 const buildTimestamp = Date.now();
 
 const dataJsPath = path.join(publicDir, 'topics-data.js');
-const jsContent = `window.STAGE_GATE_DATA = ${JSON.stringify(topicsData, null, 2)};`;
+const jsContent = `window.STAGE_GATE_DATA = ${JSON.stringify(topicsData, null, 2)};\nwindow.STAGE_GATE_PRACTICALS = ${JSON.stringify(practicalsData, null, 2)};`;
 fs.writeFileSync(dataJsPath, jsContent, 'utf8');
 
 const indexPath = path.join(publicDir, 'index.html');

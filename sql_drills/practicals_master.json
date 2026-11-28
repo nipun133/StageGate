@@ -1,0 +1,412 @@
+[
+  {
+    "slot": "01",
+    "conceptId": "2.4",
+    "conceptTitle": "2.4 Operator Precedence (`AND` evaluated before `OR`, overriding with parentheses)",
+    "category": "WHERE Clause",
+    "prompt": "Return `campaign_id`, `channel`, and `budget` for active campaigns (`'ACTIVE'`) running on either `'EMAIL'` or `'SOCIAL'` channels with a budget of at least `50000`. Sort from highest budget to lowest.",
+    "schema": "`campaigns (campaign_id NUMBER, channel VARCHAR2(20), status VARCHAR2(15), budget NUMBER, region VARCHAR2(15))`",
+    "solution": "SELECT campaign_id, channel, budget\n  FROM campaigns\n  WHERE (channel = 'EMAIL' OR channel = 'SOCIAL')\n    AND status = 'ACTIVE'\n    AND budget >= 50000\n  ORDER BY budget DESC;",
+    "trap": "Omitting parentheses (`channel = 'EMAIL' OR channel = 'SOCIAL' AND status = 'ACTIVE' AND budget >= 50000`) lets inactive or under-budget `'EMAIL'` campaigns leak through because `AND` binds tighter than `OR`."
+  },
+  {
+    "slot": "02",
+    "conceptId": "5.3",
+    "conceptTitle": "5.3 Modulo Remainder (`MOD`)",
+    "category": "Functions & Dates",
+    "prompt": "Return `packet_id`, `source_node`, and `payload_bytes` for even-numbered `packet_id`s (positive integers) whose `payload_bytes` leaves a remainder of `5` when divided by `8`. Sort by `packet_id` ascending.",
+    "schema": "`network_packets (packet_id NUMBER, source_node VARCHAR2(20), payload_bytes NUMBER)`",
+    "solution": "SELECT packet_id, source_node, payload_bytes\n  FROM network_packets\n  WHERE MOD(packet_id, 2) = 0\n    AND MOD(payload_bytes, 8) = 5\n  ORDER BY packet_id ASC;",
+    "trap": "Standard `MOD(col, 2) = 0` for even parity and `MOD(payload_bytes, 8) = 5` for remainder comparison."
+  },
+  {
+    "slot": "03",
+    "conceptId": "4.3",
+    "conceptTitle": "4.3 Substring Extraction (`SUBSTR`)",
+    "category": "Functions & Dates",
+    "prompt": "Given customer accounts, return `account_id`, `area_code` (the 3-character area code starting at character position 2 in `phone_number`, e.g., `'415'` from `'(415)555-0199'`), and `last_four` (the final 4 characters of `account_number` using negative indexing).",
+    "schema": "`customer_accounts (account_id NUMBER, phone_number VARCHAR2(20), account_number VARCHAR2(30))`",
+    "solution": "SELECT account_id,\n         SUBSTR(phone_number, 2, 3) AS area_code,\n         SUBSTR(account_number, -4) AS last_four\n  FROM customer_accounts;",
+    "trap": "`SUBSTR` index is 1-based (`position 2` skips the opening parenthesis); negative `start_position` (`-4`) counts from the end, and omitting length slices through to the end."
+  },
+  {
+    "slot": "04",
+    "conceptId": "6.1",
+    "conceptTitle": "6.1 Date Storage & Day Arithmetic",
+    "category": "Functions & Dates",
+    "prompt": "Each incident has a 6-hour resolution SLA from `opened_at`. For already-resolved incidents that breached that 6-hour deadline, display `incident_id`, `target_sla_time` (the exact deadline timestamp), and `resolution_hours` (positive elapsed hours taken to resolve).",
+    "schema": "`sla_incidents (incident_id NUMBER, opened_at DATE, resolved_at DATE)`",
+    "solution": "SELECT incident_id,\n         opened_at + 6 / 24 AS target_sla_time,\n         (resolved_at - opened_at) * 24 AS resolution_hours\n  FROM sla_incidents\n  WHERE resolved_at IS NOT NULL\n    AND resolved_at > opened_at + 6 / 24;",
+    "trap": "Adding integer `6` adds 6 *days*, not hours (`6/24` required). Subtracting `earlier - later` produces negative hours; must be `(resolved_at - opened_at) * 24`."
+  },
+  {
+    "slot": "05",
+    "conceptId": "6.5",
+    "conceptTitle": "6.5 Date Rounding & Truncation (`ROUND` & `TRUNC` on dates)",
+    "category": "Functions & Dates",
+    "prompt": "Display `invoice_id`, `billed_on`, `month_start` (the 1st day of that invoice's billing month), and `rounded_fiscal_year` (the billing date rounded to the nearest calendar year boundary: Jan–Jun to Jan 1 of the same year, Jul–Dec to Jan 1 of the following year). Return only invoices billed late enough in the month (days 16–31) that rounding to the nearest month shifts them into the next month.",
+    "schema": "`subscription_invoices (invoice_id NUMBER, billed_on DATE, amount NUMBER)`",
+    "solution": "SELECT invoice_id,\n         billed_on,\n         TRUNC(billed_on, 'MONTH') AS month_start,\n         ROUND(billed_on, 'YEAR') AS rounded_fiscal_year\n  FROM subscription_invoices\n  WHERE ROUND(billed_on, 'MONTH') > TRUNC(billed_on, 'MONTH');",
+    "trap": "`TRUNC(d, 'MONTH')` always drops to the 1st of the current month; `ROUND(d, 'MONTH')` moves days 16–31 to the 1st of the next month; `'YEAR'` format must be single-quoted."
+  },
+  {
+    "slot": "06",
+    "conceptId": "7.2",
+    "conceptTitle": "7.2 Date Formatting (`TO_CHAR` with dates)",
+    "category": "Functions & Dates",
+    "prompt": "Return `event_id` and `formatted_ts`, formatting `event_ts` to look exactly like `'15th of August, 2026 at 14:05'` (24-hour clock with zero-padded minutes, capitalized full month name with no trailing padding spaces, no leading zeros on single-digit days, and exact casing on `'th'`, `'of'`, and `'at'`).",
+    "schema": "`audit_events (event_id NUMBER, event_ts DATE, actor VARCHAR2(30))`",
+    "solution": "SELECT event_id,\n         TO_CHAR(event_ts, 'FMDDth \"of\" Month, YYYY \"at\" HH24:MI') AS formatted_ts\n  FROM audit_events;",
+    "trap": "Using `MM` instead of `MI` outputs the month number instead of minutes; omitting `FM` pads spaces after `August` and leading `0` on days 1–9; unquoted `of`/`at` raises date format error; uppercase `MONTH`/`TH` alters capitalization."
+  },
+  {
+    "slot": "07",
+    "conceptId": "2.7",
+    "conceptTitle": "2.7 Pattern Matching with `LIKE` (`%`, `_`, case sensitivity, `ESCAPE`)",
+    "category": "WHERE Clause",
+    "prompt": "Retrieve `log_id` and `promo_code` for rows whose `promo_code` begins with any 2 characters followed immediately by a literal `%` symbol, then any remaining text, ending with exact `'26'`.",
+    "schema": "`audit_logs (log_id NUMBER, promo_code VARCHAR2(30), event_note VARCHAR2(60))`",
+    "solution": "SELECT log_id, promo_code\n  FROM audit_logs\n  WHERE promo_code LIKE '__!%%26' ESCAPE '!';",
+    "trap": "Must use `__` (two single-char wildcards), escape only the literal `%` (`!%`), keep the trailing `%` unescaped as a wildcard, and specify `ESCAPE '!'` (or `\\`, `#`)."
+  },
+  {
+    "slot": "08",
+    "conceptId": "11.3",
+    "conceptTitle": "11.3 `INTERSECT` and Oracle `MINUS`",
+    "category": "Set Operators",
+    "prompt": "Without using joins or subqueries, return `(acct_id, email)` pairs present in `legacy_accounts` that have not yet appeared in `cloud_accounts`. Sort by `acct_id` ascending.",
+    "schema": "`legacy_accounts (acct_id NUMBER, email VARCHAR2(50), created_at DATE)`\n  `cloud_accounts (acct_id NUMBER, email VARCHAR2(50), region VARCHAR2(20))`",
+    "solution": "SELECT acct_id, email FROM legacy_accounts\n  MINUS\n  SELECT acct_id, email FROM cloud_accounts\n  ORDER BY acct_id ASC;",
+    "trap": "Must use `MINUS` (not `EXCEPT`); `legacy_accounts` must come first (`A MINUS B != B MINUS A`); `ORDER BY` only once at the very end; equal column count (`acct_id, email`)."
+  },
+  {
+    "slot": "09",
+    "conceptId": "12.2",
+    "conceptTitle": "12.2 The `UPDATE` Statement",
+    "category": "DML & MERGE",
+    "prompt": "Write a single statement modifying `inventory` strictly for `'ELECTRONICS'` items with fewer than `10` units in stock: raise `unit_price` by `15%`, increase `stock_qty` by `50`, and set `last_updated` to the current database timestamp.",
+    "schema": "`inventory (sku VARCHAR2(20), category VARCHAR2(20), unit_price NUMBER, stock_qty NUMBER, last_updated DATE)`",
+    "solution": "UPDATE inventory\n  SET unit_price = unit_price * 1.15,\n      stock_qty = stock_qty + 50,\n      last_updated = SYSDATE\n  WHERE category = 'ELECTRONICS'\n    AND stock_qty < 10;",
+    "trap": "Multiple assignments in `SET` must be comma-separated (using `AND` raises `SQL command not properly ended`); missing `WHERE` updates the entire table."
+  },
+  {
+    "slot": "10",
+    "conceptId": "14.3",
+    "conceptTitle": "14.3 Database Sequences",
+    "category": "DDL & Views",
+    "prompt": "Write two statements:\n  1. Create a sequence `seq_ticket_id` beginning at `1000`, advancing by `5` per value, caching zero values in memory, and stopping rather than wrapping around at its limit.\n  2. Insert `'Login Bug'` into `tickets` using `seq_ticket_id` to generate `ticket_id`.",
+    "schema": "`tickets (ticket_id NUMBER PRIMARY KEY, title VARCHAR2(50))`",
+    "solution": "CREATE SEQUENCE seq_ticket_id\n      START WITH 1000\n      INCREMENT BY 5\n      NOCACHE\n      NOCYCLE;\n\n  INSERT INTO tickets (ticket_id, title)\n  VALUES (seq_ticket_id.NEXTVAL, 'Login Bug');",
+    "trap": "Using `CURRVAL` before `NEXTVAL` in a fresh session raises `sequence CURRVAL is not yet defined in this session`; omitting `NOCACHE` defaults to `CACHE 20`."
+  },
+  {
+    "slot": "11",
+    "conceptId": "14.2",
+    "conceptTitle": "14.2 View Integrity Clauses (`WITH READ ONLY` & `WITH CHECK OPTION`)",
+    "category": "DDL & Views",
+    "prompt": "Create or replace a view `v_it_high_earners` over `employees` showing `emp_id`, `emp_name`, `dept_id`, and `salary` exclusively for `dept_id = 60` earning at least `80000`. Inserts and updates through the view must still work, **except** any write that would create or move a row outside that department or salary filter must be rejected.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER)`",
+    "solution": "CREATE OR REPLACE VIEW v_it_high_earners AS\n  SELECT emp_id, emp_name, dept_id, salary\n  FROM employees\n  WHERE dept_id = 60\n    AND salary >= 80000\n  WITH CHECK OPTION;",
+    "trap": "Adding `WITH READ ONLY` blocks all DML (violating the prompt); omitting `WITH CHECK OPTION` allows inserting/updating out-of-scope rows silently."
+  },
+  {
+    "slot": "12",
+    "conceptId": "13.5",
+    "conceptTitle": "13.5 Modifying Tables & Constraints (`ALTER TABLE`)",
+    "category": "DDL & Views",
+    "prompt": "Existing table `dept_catalog` has its `dept_id` primary key referenced by an active foreign key on `staff`. Write 3 DDL statements to:\n  1. Widen `dept_desc` to allow up to 150 variable characters.\n  2. Enforce that `dept_code` can no longer be left empty.\n  3. Drop `dept_catalog`'s primary key cleanly along with any dependent foreign keys referencing it.",
+    "schema": "`dept_catalog (dept_id NUMBER PRIMARY KEY, dept_code VARCHAR2(10), dept_desc VARCHAR2(50))`",
+    "solution": "ALTER TABLE dept_catalog MODIFY (dept_desc VARCHAR2(150));\n  ALTER TABLE dept_catalog MODIFY (dept_code NOT NULL);\n  ALTER TABLE dept_catalog DROP PRIMARY KEY CASCADE;",
+    "trap": "Using `ADD CONSTRAINT ... NOT NULL` or `ALTER COLUMN` is invalid Oracle syntax; omitting `CASCADE` on `DROP PRIMARY KEY` raises `this unique/primary key is referenced by some foreign keys`."
+  },
+  {
+    "slot": "13",
+    "conceptId": "13.2",
+    "conceptTitle": "13.2 `PRIMARY KEY`, `UNIQUE`, and `NOT NULL`",
+    "category": "DDL & Views",
+    "prompt": "Write DDL to create table `course_enrollments` with:\n  - `student_id`: whole number up to 10 digits\n  - `course_id`: whole number up to 10 digits\n  - `seat_code`: variable string up to 10 characters; must never duplicate across populated rows, while permitting multiple rows without a seat assigned\n  - `enrolled_on`: date value, mandatory on every row\n  - A named primary key `pk_enroll` uniquely identifying each `(student_id, course_id)` pair.",
+    "schema": "New table `course_enrollments`",
+    "solution": "CREATE TABLE course_enrollments (\n      student_id  NUMBER(10),\n      course_id   NUMBER(10),\n      seat_code   VARCHAR2(10) UNIQUE,\n      enrolled_on DATE NOT NULL,\n      CONSTRAINT pk_enroll PRIMARY KEY (student_id, course_id)\n  );",
+    "trap": "Writing `PRIMARY KEY` inline on both `student_id` and `course_id` raises `ORA-02260: table can have only one primary key`; adding `NOT NULL` to `seat_code` breaks the requirement allowing `NULL`s."
+  },
+  {
+    "slot": "14",
+    "conceptId": "8.6",
+    "conceptTitle": "8.6 Nesting Group Functions",
+    "category": "Aggregation",
+    "prompt": "Return a single-row summary across all departments (`dept_id`) showing `highest_dept_avg_hours` (the largest average `hours_logged` among all departments, rounded to 2 decimal places) and `lowest_dept_total_hours` (the smallest total `hours_logged` among all departments).",
+    "schema": "`project_allocations (alloc_id NUMBER, dept_id NUMBER, hours_logged NUMBER)`",
+    "solution": "SELECT ROUND(MAX(AVG(hours_logged)), 2) AS highest_dept_avg_hours,\n         MIN(SUM(hours_logged)) AS lowest_dept_total_hours\n  FROM project_allocations\n  GROUP BY dept_id;",
+    "trap": "Including `dept_id` in `SELECT` fails with `not a single-group group function`; `ROUND` wraps the outer 2-level aggregate cleanly without nesting 3 group functions."
+  },
+  {
+    "slot": "15",
+    "conceptId": "8.4",
+    "conceptTitle": "8.4 Grouping Rows with `GROUP BY`",
+    "category": "Aggregation",
+    "prompt": "Summarize store sales by `store_id`, `order_year` (4-digit year of `order_date`), and `payment_mode`, showing `order_count` and `total_revenue` for each combination. Sort from highest revenue to lowest.",
+    "schema": "`store_orders (order_id NUMBER, store_id NUMBER, payment_mode VARCHAR2(20), order_date DATE, total_amt NUMBER)`",
+    "solution": "SELECT store_id,\n         TO_CHAR(order_date, 'YYYY') AS order_year,\n         payment_mode,\n         COUNT(*) AS order_count,\n         SUM(total_amt) AS total_revenue\n  FROM store_orders\n  GROUP BY store_id, TO_CHAR(order_date, 'YYYY'), payment_mode\n  ORDER BY total_revenue DESC;",
+    "trap": "Putting `order_year` (column alias) in `GROUP BY` fails with `invalid identifier`; omitting `TO_CHAR(order_date, 'YYYY')` or `payment_mode` from `GROUP BY` fails with `not a GROUP BY expression`."
+  },
+  {
+    "slot": "16",
+    "conceptId": "8.2",
+    "conceptTitle": "8.2 Group Functions & NULL Handling",
+    "category": "Aggregation",
+    "prompt": "Generate a regional commission report showing one row per `region`:\n  - `region`\n  - `total_reps`: total sales reps in that region\n  - `commissioned_reps`: count of reps who actually have a recorded `commission_pct`\n  - `avg_earners_only`: average commission calculated strictly across reps who earn commission (rounded to 2 decimal places)\n  - `avg_all_reps`: average commission across every rep in the region treating missing commissions as `0` (rounded to 2 decimal places)\n  Sort alphabetically by `region`.",
+    "schema": "`sales_reps (rep_id NUMBER, region VARCHAR2(20), commission_pct NUMBER)`",
+    "solution": "SELECT region,\n         COUNT(*) AS total_reps,\n         COUNT(commission_pct) AS commissioned_reps,\n         ROUND(AVG(commission_pct), 2) AS avg_earners_only,\n         ROUND(AVG(NVL(commission_pct, 0)), 2) AS avg_all_reps\n  FROM sales_reps\n  GROUP BY region\n  ORDER BY region ASC;",
+    "trap": "Using `COUNT(*)` for both or forgetting `NVL(commission_pct, 0)` inside `AVG`."
+  },
+  {
+    "slot": "17",
+    "conceptId": "9.5",
+    "conceptTitle": "9.5 Self Joins (Slot 1 of 2)",
+    "category": "Joins",
+    "prompt": "Find all employees who earn strictly more than their direct manager (`manager_id` references `emp_id` in `staff`). Display `emp_name`, `emp_salary`, `manager_name`, and `manager_salary`.",
+    "schema": "`staff (emp_id NUMBER, emp_name VARCHAR2(40), manager_id NUMBER, salary NUMBER, dept_id NUMBER)`",
+    "solution": "SELECT e.emp_name,\n         e.salary AS emp_salary,\n         m.emp_name AS manager_name,\n         m.salary AS manager_salary\n  FROM staff e\n  JOIN staff m ON e.manager_id = m.emp_id\n  WHERE e.salary > m.salary;",
+    "trap": "Must alias `staff` twice (`e` and `m`) and match `e.manager_id = m.emp_id` (not `e.emp_id = m.manager_id`, which reverses employee/manager roles!)."
+  },
+  {
+    "slot": "18",
+    "conceptId": "9.6",
+    "conceptTitle": "9.6 Non-Equijoins",
+    "category": "Joins",
+    "prompt": "Each order belongs to the discount tier whose inclusive `[min_amt, max_amt]` range contains its `order_amount`. Summarize each matched tier with `tier_name`, `order_count`, and `discounted_revenue` (total net order revenue after deducting each tier's `discount_pct`, rounded to 2 decimal places). Sort from highest discounted revenue to lowest.",
+    "schema": "`orders (order_id NUMBER, order_amount NUMBER)`\n  `discount_tiers (tier_name VARCHAR2(20), min_amt NUMBER, max_amt NUMBER, discount_pct NUMBER)`",
+    "solution": "SELECT d.tier_name,\n         COUNT(o.order_id) AS order_count,\n         ROUND(SUM(o.order_amount * (1 - d.discount_pct / 100)), 2) AS discounted_revenue\n  FROM orders o\n  JOIN discount_tiers d ON o.order_amount BETWEEN d.min_amt AND d.max_amt\n  GROUP BY d.tier_name\n  ORDER BY discounted_revenue DESC;",
+    "trap": "Must use `BETWEEN d.min_amt AND d.max_amt` in `ON`; no equality join column exists."
+  },
+  {
+    "slot": "19",
+    "conceptId": "9.7",
+    "conceptTitle": "9.7 `LEFT OUTER JOIN` (Slot 1 of 2)",
+    "category": "Joins",
+    "prompt": "Find `dept_id` and `dept_name` for all departments that currently have zero associated projects, **without using subqueries or set operators**. Sort by `dept_id` ascending.",
+    "schema": "`departments (dept_id NUMBER, dept_name VARCHAR2(30))`\n  `projects (proj_id NUMBER, dept_id NUMBER, status VARCHAR2(15))`",
+    "solution": "SELECT d.dept_id,\n         d.dept_name\n  FROM departments d\n  LEFT JOIN projects p ON d.dept_id = p.dept_id\n  WHERE p.proj_id IS NULL\n  ORDER BY d.dept_id ASC;",
+    "trap": "Using `= NULL` returns 0 rows; selecting unqualified `dept_id` raises `column ambiguously defined`; filtering `p.dept_id IS NULL` or `p.proj_id IS NULL` completes the anti-join."
+  },
+  {
+    "slot": "20",
+    "conceptId": "10.1",
+    "conceptTitle": "10.1 Single-Row Subqueries",
+    "category": "Subqueries",
+    "prompt": "Find `emp_id`, `emp_name`, `dept_id`, and `salary` for employees who have completed at least 60 full calendar months (5 years) of service as of today's database date and earn strictly less than the company-wide average salary. Sort from highest salary to lowest.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER, hire_date DATE)`",
+    "solution": "SELECT emp_id, emp_name, dept_id, salary\n  FROM employees\n  WHERE MONTHS_BETWEEN(SYSDATE, hire_date) >= 60\n    AND salary < (SELECT AVG(salary) FROM employees)\n  ORDER BY salary DESC;",
+    "trap": "Reversing arguments in `MONTHS_BETWEEN(hire_date, SYSDATE)` yields negative months; writing `WHERE salary < AVG(salary)` directly raises `group function is not allowed here`."
+  },
+  {
+    "slot": "21",
+    "conceptId": "10.4",
+    "conceptTitle": "10.4 Multi-Row Comparison with `ANY` and `ALL`",
+    "category": "Subqueries",
+    "prompt": "Without using aggregate functions (`MIN`, `MAX`, etc.), return `emp_id`, `emp_name`, `job_id`, and `salary` for employees whose `job_id` is neither `'IT_PROG'` nor `'SA_MAN'`, who earn strictly more than every `'IT_PROG'` employee while also earning strictly less than at least one `'SA_MAN'` employee.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), job_id VARCHAR2(15), salary NUMBER)`",
+    "solution": "SELECT emp_id, emp_name, job_id, salary\n  FROM employees\n  WHERE job_id NOT IN ('IT_PROG', 'SA_MAN')\n    AND salary > ALL (SELECT salary FROM employees WHERE job_id = 'IT_PROG')\n    AND salary < ANY (SELECT salary FROM employees WHERE job_id = 'SA_MAN');",
+    "trap": "Mixing up `> ALL` (> max) with `> ANY` (> min), or `< ANY` (< max) with `< ALL` (< min)."
+  },
+  {
+    "slot": "22",
+    "conceptId": "10.5",
+    "conceptTitle": "10.5 The `NOT IN` with NULL Trap",
+    "category": "Subqueries",
+    "prompt": "In `employees`, `mentor_id` points to another employee's `emp_id` and may be `NULL`. Find `emp_id` and `emp_name` of all employees who are not anyone's mentor. **Solve using a list-membership check (`NOT IN`) without joins or `EXISTS`.**",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), mentor_id NUMBER)`",
+    "solution": "SELECT emp_id, emp_name\n  FROM employees\n  WHERE emp_id NOT IN (\n      SELECT mentor_id\n      FROM employees\n      WHERE mentor_id IS NOT NULL\n  );",
+    "trap": "Omitting `WHERE mentor_id IS NOT NULL` inside the subquery causes `NOT IN` to return 0 rows due to `AND ... UNKNOWN` poisoning."
+  },
+  {
+    "slot": "23",
+    "conceptId": "10.6",
+    "conceptTitle": "10.6 Multiple-Column Pairwise Subqueries",
+    "category": "Subqueries",
+    "prompt": "Without using joins or analytic/window functions, find `product_id`, `product_name`, `category_id`, and `price` for the lowest-priced item(s) within each product category. Sort by `category_id` ascending.",
+    "schema": "`products (product_id NUMBER, product_name VARCHAR2(40), category_id NUMBER, price NUMBER)`",
+    "solution": "SELECT product_id, product_name, category_id, price\n  FROM products\n  WHERE (category_id, price) IN (\n      SELECT category_id, MIN(price)\n      FROM products\n      GROUP BY category_id\n  )\n  ORDER BY category_id ASC;",
+    "trap": "Grouping by `product_id` collapses per row; non-pairwise `WHERE category_id IN (...) AND price IN (...)` causes cross-category false matches. Must evaluate `(category_id, price) IN (...)` as an atomic tuple."
+  },
+  {
+    "slot": "24",
+    "conceptId": "15.1",
+    "conceptTitle": "15.1 Ranking Functions: `ROW_NUMBER` vs `RANK` vs `DENSE_RANK` (Slot 1 of 2)",
+    "category": "Window Functions",
+    "prompt": "Retaining every player row in `contest_scores`, output `player_name`, `score`, and three score-based rankings (highest `score` = `1`):\n  - `seq_pos`: strictly consecutive `1, 2, 3, 4...` with no tied positions\n  - `gap_rank`: ties share the same position and leave gaps afterward (`1, 2, 2, 4...`)\n  - `dense_pos`: ties share the same position with no gaps afterward (`1, 2, 2, 3...`)",
+    "schema": "`contest_scores (player_id NUMBER, player_name VARCHAR2(30), score NUMBER)`",
+    "solution": "SELECT player_name,\n         score,\n         ROW_NUMBER() OVER (ORDER BY score DESC) AS seq_pos,\n         RANK() OVER (ORDER BY score DESC) AS gap_rank,\n         DENSE_RANK() OVER (ORDER BY score DESC) AS dense_pos\n  FROM contest_scores;",
+    "trap": "All three require `OVER (ORDER BY score DESC)`; confusing `RANK` vs `DENSE_RANK`."
+  },
+  {
+    "slot": "25",
+    "conceptId": "8.5",
+    "conceptTitle": "8.5 Group Filtering with `HAVING` vs `WHERE` (Slot 1 of 2)",
+    "category": "Aggregation",
+    "prompt": "Considering only `'COMPLETED'` orders placed on or after `'01-JAN-2026'`, find `customer_id`, `completed_count`, and `total_spent` for customers with at least `3` qualifying orders whose total qualifying spend exceeds `25000`. Sort from highest spend to lowest.",
+    "schema": "`orders (order_id NUMBER, customer_id NUMBER, status VARCHAR2(15), amount NUMBER, order_date DATE)`",
+    "solution": "SELECT customer_id,\n         COUNT(*) AS completed_count,\n         SUM(amount) AS total_spent\n  FROM orders\n  WHERE status = 'COMPLETED'\n    AND order_date >= TO_DATE('01-JAN-2026', 'DD-MON-YYYY')\n  GROUP BY customer_id\n  HAVING COUNT(*) >= 3\n     AND SUM(amount) > 25000\n  ORDER BY total_spent DESC;",
+    "trap": "Putting `COUNT(*)`/`SUM(amount)` inside `WHERE` raises `group function is not allowed here`; putting `status` in `HAVING` without `GROUP BY status` fails."
+  },
+  {
+    "slot": "26",
+    "conceptId": "8.5",
+    "conceptTitle": "8.5 Group Filtering with `HAVING` vs `WHERE` (Slot 2 of 2)",
+    "category": "Aggregation",
+    "prompt": "Identify suspicious accounts by looking solely at `'FAILED'` login attempts (`login_status = 'FAILED'`). Return `emp_id` and `failed_attempts` for employees who accumulated more than `2` failed attempts across more than `1` distinct operating system (`device_os`). Sort from most failed attempts to fewest.",
+    "schema": "`employee_logins (login_id NUMBER, emp_id NUMBER, device_os VARCHAR2(20), login_status VARCHAR2(15))`",
+    "solution": "SELECT emp_id,\n         COUNT(*) AS failed_attempts\n  FROM employee_logins\n  WHERE login_status = 'FAILED'\n  GROUP BY emp_id\n  HAVING COUNT(*) > 2\n     AND COUNT(DISTINCT device_os) > 1\n  ORDER BY failed_attempts DESC;",
+    "trap": "Must filter `'FAILED'` rows in `WHERE`, group strictly by `emp_id` (not `device_os`), and enforce both `COUNT(*) > 2` and `COUNT(DISTINCT device_os) > 1` in `HAVING`."
+  },
+  {
+    "slot": "27",
+    "conceptId": "9.4",
+    "conceptTitle": "9.4 The `JOIN ... ON` Syntax (Slot 1 of 2)",
+    "category": "Joins",
+    "prompt": "Return `emp_id`, `emp_name`, `dept_id`, `dept_name`, `salary`, and `commission_pct` for employees in `'Bengaluru'` (department locations may use mixed letter casing) earning strictly more than `75000`. Sort from highest commission percentage to lowest, keeping employees with missing commissions at the bottom, and break ties by highest salary first.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER, commission_pct NUMBER, hire_date DATE)`\n  `departments (dept_id NUMBER, dept_name VARCHAR2(30), location VARCHAR2(30))`",
+    "solution": "SELECT e.emp_id,\n         e.emp_name,\n         e.dept_id,\n         d.dept_name,\n         e.salary,\n         e.commission_pct\n  FROM employees e\n  JOIN departments d ON e.dept_id = d.dept_id\n  WHERE LOWER(d.location) = 'bengaluru'\n    AND e.salary > 75000\n  ORDER BY e.commission_pct DESC NULLS LAST, e.salary DESC;",
+    "trap": "Selecting `dept_id` unqualified raises `column ambiguously defined`; filtering `d.location = 'Bengaluru'` misses `'BENGALURU'`/`'bengaluru'`; `ORDER BY e.commission_pct DESC` without `NULLS LAST` puts `NULL` rows at the top in Oracle."
+  },
+  {
+    "slot": "28",
+    "conceptId": "9.4",
+    "conceptTitle": "9.4 The `JOIN ... ON` Syntax (Slot 2 of 2)",
+    "category": "Joins",
+    "prompt": "Find each `'Mumbai'` customer's `customer_id`, `customer_name`, and `total_order_value` (combined value of all items they ordered), keeping only customers whose total order value exceeds `50000`. Sort from highest total order value to lowest.",
+    "schema": "`customers (customer_id NUMBER, customer_name VARCHAR2(40), city VARCHAR2(30))`\n  `orders (order_id NUMBER, customer_id NUMBER, order_date DATE)`\n  `order_items (order_id NUMBER, product_id NUMBER, qty NUMBER, unit_price NUMBER)`",
+    "solution": "SELECT c.customer_id,\n         c.customer_name,\n         SUM(oi.qty * oi.unit_price) AS total_order_value\n  FROM customers c\n  JOIN orders o ON c.customer_id = o.customer_id\n  JOIN order_items oi ON o.order_id = oi.order_id\n  WHERE c.city = 'Mumbai'\n  GROUP BY c.customer_id, c.customer_name\n  HAVING SUM(oi.qty * oi.unit_price) > 50000\n  ORDER BY total_order_value DESC;",
+    "trap": "All shared columns (`c.customer_id`, `o.order_id`) must be qualified; `c.customer_name` must appear in `GROUP BY`."
+  },
+  {
+    "slot": "29",
+    "conceptId": "9.5",
+    "conceptTitle": "9.5 Self Joins (Slot 2 of 2)",
+    "category": "Joins",
+    "prompt": "List every employee in `org_employees` (`manager_id` points to their manager's `emp_id`), including top-level staff with no manager. Show `emp_name`, `hire_date`, `manager_name` (`'NO MANAGER'` if none), and `seniority_flag` (`'Hired Before Manager'` if the employee's hire date is earlier than their manager's, otherwise `'Normal'`).",
+    "schema": "`org_employees (emp_id NUMBER, emp_name VARCHAR2(40), manager_id NUMBER, hire_date DATE)`",
+    "solution": "SELECT e.emp_name,\n         e.hire_date,\n         NVL(m.emp_name, 'NO MANAGER') AS manager_name,\n         CASE\n             WHEN e.hire_date < m.hire_date THEN 'Hired Before Manager'\n             ELSE 'Normal'\n         END AS seniority_flag\n  FROM org_employees e\n  LEFT JOIN org_employees m ON e.manager_id = m.emp_id;",
+    "trap": "Using inner `JOIN` silently drops top-level rows with `manager_id IS NULL`. Also handles `m.hire_date` being `NULL` safely (`e.hire_date < NULL` evaluates to `UNKNOWN`, falling into `ELSE 'Normal'`)."
+  },
+  {
+    "slot": "30",
+    "conceptId": "9.7",
+    "conceptTitle": "9.7 `LEFT OUTER JOIN` (Slot 2 of 2)",
+    "category": "Joins",
+    "prompt": "Report every customer's `customer_id`, `customer_name`, `order_count`, and `total_spent`. Customers who have never placed an order must still appear with `0` for both `order_count` and `total_spent`. Sort by `total_spent` descending, then `customer_id` ascending.",
+    "schema": "`customers (customer_id NUMBER, customer_name VARCHAR2(40))`\n  `orders (order_id NUMBER, customer_id NUMBER, amount NUMBER)`",
+    "solution": "SELECT c.customer_id,\n         c.customer_name,\n         COUNT(o.order_id) AS order_count,\n         NVL(SUM(o.amount), 0) AS total_spent\n  FROM customers c\n  LEFT JOIN orders o ON c.customer_id = o.customer_id\n  GROUP BY c.customer_id, c.customer_name\n  ORDER BY total_spent DESC, c.customer_id ASC;",
+    "trap": "Using `COUNT(*)` instead of `COUNT(o.order_id)` returns `1` for zero-order customers! Forgetting `NVL(..., 0)` around `SUM(o.amount)` leaves `NULL` on zero-order customers."
+  },
+  {
+    "slot": "31",
+    "conceptId": "9.8",
+    "conceptTitle": "9.8 `RIGHT` and `FULL OUTER JOIN`",
+    "category": "Joins",
+    "prompt": "Reconcile `q1_budget` against `q1_actuals` so every `dept_id` appearing in either table (or both) appears once. Display `dept_id`, `allocated_amt` (`0` if absent from budget), `spent_amt` (`0` if absent from actuals), and `variance` (allocated amount minus spent amount). Sort by `dept_id` ascending.",
+    "schema": "`q1_budget (dept_id NUMBER, allocated_amt NUMBER)`\n  `q1_actuals (dept_id NUMBER, spent_amt NUMBER)`",
+    "solution": "SELECT COALESCE(b.dept_id, a.dept_id) AS dept_id,\n         NVL(b.allocated_amt, 0) AS allocated_amt,\n         NVL(a.spent_amt, 0) AS spent_amt,\n         NVL(b.allocated_amt, 0) - NVL(a.spent_amt, 0) AS variance\n  FROM q1_budget b\n  FULL OUTER JOIN q1_actuals a ON b.dept_id = a.dept_id\n  ORDER BY dept_id ASC;",
+    "trap": "Selecting just `b.dept_id` shows `NULL` for actual-only departments; forgetting `NVL` inside `variance` causes `NULL` subtraction (`NULL` propagation)."
+  },
+  {
+    "slot": "32",
+    "conceptId": "10.7",
+    "conceptTitle": "10.7 Correlated Subqueries & `EXISTS` / `NOT EXISTS` (Slot 1 of 2)",
+    "category": "Subqueries",
+    "prompt": "Without using joins or analytic/window functions, return `emp_id`, `emp_name`, `dept_id`, and `salary` for employees who earn strictly more than the average salary of their own department. Sort by `dept_id` ascending, then `salary` descending.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER)`",
+    "solution": "SELECT e.emp_id, e.emp_name, e.dept_id, e.salary\n  FROM employees e\n  WHERE e.salary > (\n      SELECT AVG(e2.salary)\n      FROM employees e2\n      WHERE e2.dept_id = e.dept_id\n  )\n  ORDER BY e.dept_id ASC, e.salary DESC;",
+    "trap": "Omitting distinct alias (`e` vs `e2`) and `WHERE e2.dept_id = e.dept_id` turns it into an un-correlated company-wide average."
+  },
+  {
+    "slot": "33",
+    "conceptId": "10.7",
+    "conceptTitle": "10.7 Correlated Subqueries & `EXISTS` / `NOT EXISTS` (Slot 2 of 2)",
+    "category": "Subqueries",
+    "prompt": "Without using joins or set operators, return `vendor_id` and `vendor_name` for `'ACTIVE'` vendors who have placed zero purchase orders within the past 6 full calendar months from today's database date (note that `vendor_id` in `purchase_orders` can be `NULL`). Sort alphabetically by `vendor_name`.",
+    "schema": "`vendors (vendor_id NUMBER, vendor_name VARCHAR2(40), status VARCHAR2(15))`\n  `purchase_orders (po_id NUMBER, vendor_id NUMBER, po_date DATE, amount NUMBER)`",
+    "solution": "SELECT v.vendor_id, v.vendor_name\n  FROM vendors v\n  WHERE v.status = 'ACTIVE'\n    AND NOT EXISTS (\n        SELECT 1\n        FROM purchase_orders po\n        WHERE po.vendor_id = v.vendor_id\n          AND po.po_date >= ADD_MONTHS(SYSDATE, -6)\n    )\n  ORDER BY v.vendor_name ASC;",
+    "trap": "Both `po.vendor_id = v.vendor_id` AND `po.po_date >= ADD_MONTHS(SYSDATE, -6)` must live inside the `NOT EXISTS` subquery; subtracting `180` days instead of `ADD_MONTHS(SYSDATE, -6)` misses calendar month lengths; `NOT IN` fails silently if `po.vendor_id` has `NULL`."
+  },
+  {
+    "slot": "34",
+    "conceptId": "12.4",
+    "conceptTitle": "12.4 The Oracle `MERGE` Statement",
+    "category": "DML & MERGE",
+    "prompt": "Write a single Oracle synchronization statement to keep `employee_master` up to date from `employee_staging` based on matching `emp_id`: update `emp_name`, `salary`, and `dept_id` for existing employees, and insert new employees in full when absent from `employee_master`.",
+    "schema": "`employee_master (emp_id NUMBER, emp_name VARCHAR2(40), salary NUMBER, dept_id NUMBER)`\n  `employee_staging (emp_id NUMBER, emp_name VARCHAR2(40), salary NUMBER, dept_id NUMBER)`",
+    "solution": "MERGE INTO employee_master m\n  USING employee_staging s\n  ON (m.emp_id = s.emp_id)\n  WHEN MATCHED THEN\n    UPDATE SET m.emp_name = s.emp_name,\n               m.salary   = s.salary,\n               m.dept_id  = s.dept_id\n  WHEN NOT MATCHED THEN\n    INSERT (emp_id, emp_name, salary, dept_id)\n    VALUES (s.emp_id, s.emp_name, s.salary, s.dept_id);",
+    "trap": "Updating `m.emp_id` inside `WHEN MATCHED` raises `Columns referenced in the ON Clause cannot be updated`; `INSERT` omits `INTO table_name`."
+  },
+  {
+    "slot": "35",
+    "conceptId": "15.1",
+    "conceptTitle": "15.1 Ranking Functions: `ROW_NUMBER` vs `RANK` vs `DENSE_RANK` (Slot 2 of 2)",
+    "category": "Window Functions",
+    "prompt": "Find all employee(s) earning the **3rd highest distinct salary** across the company (`emp_id`, `emp_name`, `dept_id`, `salary`). If multiple employees share that 3rd highest salary, return all of them.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER)`",
+    "solution": "SELECT emp_id, emp_name, dept_id, salary\n  FROM (\n      SELECT emp_id,\n             emp_name,\n             dept_id,\n             salary,\n             DENSE_RANK() OVER (ORDER BY salary DESC) AS sal_rnk\n      FROM employees\n  )\n  WHERE sal_rnk = 3;",
+    "trap": "Using `RANK()` skips rank `3` after ties at `1` or `2`; using `ROW_NUMBER()` arbitrarily drops tied earners; putting `DENSE_RANK()` in `WHERE` fails (`window functions are not allowed here`)."
+  },
+  {
+    "slot": "36",
+    "conceptId": "15.2",
+    "conceptTitle": "15.2 `PARTITION BY` & SQL Execution Order Filter Trap",
+    "category": "Window Functions",
+    "prompt": "Return `dept_id`, `emp_name`, and `salary` for employees belonging to the **top 2 highest distinct salary tiers within their department** (if employees tie for 1st or 2nd tier in a department, include all tied employees). Sort by `dept_id` ascending, then `salary` descending.",
+    "schema": "`employees (emp_id NUMBER, emp_name VARCHAR2(40), dept_id NUMBER, salary NUMBER)`",
+    "solution": "SELECT dept_id, emp_name, salary\n  FROM (\n      SELECT dept_id,\n             emp_name,\n             salary,\n             DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS dept_rnk\n      FROM employees\n  )\n  WHERE dept_rnk <= 2\n  ORDER BY dept_id ASC, salary DESC;",
+    "trap": "Filtering `WHERE dept_rnk <= 2` or `DENSE_RANK() ... <= 2` in the inner query fails because `WHERE` executes before `SELECT`; omitting `PARTITION BY dept_id` ranks globally instead of per department."
+  },
+  {
+    "slot": "37",
+    "conceptId": "15.3",
+    "conceptTitle": "15.3 Positional Navigation Functions: `LEAD` and `LAG` (Slot 1 of 2)",
+    "category": "Window Functions",
+    "prompt": "For every row in `monthly_revenue`, display `region`, `rev_month`, `revenue`, `prev_month_rev` (the prior chronological month's revenue for that same region, or `0` on a region's first month), and `mom_change` (the current month's revenue minus that prior month's revenue).",
+    "schema": "`monthly_revenue (region VARCHAR2(20), rev_month DATE, revenue NUMBER)`",
+    "solution": "SELECT region,\n         rev_month,\n         revenue,\n         LAG(revenue, 1, 0) OVER (PARTITION BY region ORDER BY rev_month) AS prev_month_rev,\n         revenue - LAG(revenue, 1, 0) OVER (PARTITION BY region ORDER BY rev_month) AS mom_change\n  FROM monthly_revenue;",
+    "trap": "Must pass `LAG(revenue, 1, 0)` so first row isn't `NULL`; cannot reference `prev_month_rev` alias in same `SELECT` expression (`revenue - prev_month_rev` would raise `invalid identifier`); must `PARTITION BY region`!"
+  },
+  {
+    "slot": "38",
+    "conceptId": "15.3",
+    "conceptTitle": "15.3 Positional Navigation Functions: `LEAD` and `LAG` (Slot 2 of 2)",
+    "category": "Window Functions",
+    "prompt": "For every clickstream event, display `user_id`, `page_name`, `event_time`, `next_event_time` (the timestamp of that same user's next chronological event, or blank if it is their final event), and `minutes_on_page` (elapsed minutes until that next event, or blank if no next event exists).",
+    "schema": "`session_events (user_id NUMBER, event_time DATE, page_name VARCHAR2(30))`",
+    "solution": "SELECT user_id,\n         page_name,\n         event_time,\n         LEAD(event_time, 1) OVER (PARTITION BY user_id ORDER BY event_time) AS next_event_time,\n         (LEAD(event_time, 1) OVER (PARTITION BY user_id ORDER BY event_time) - event_time) * 24 * 60 AS minutes_on_page\n  FROM session_events;",
+    "trap": "Must `PARTITION BY user_id` and `ORDER BY event_time`; multiply date difference by `24 * 60` for minutes; cannot reference `next_event_time` sibling alias inside the same `SELECT`."
+  },
+  {
+    "slot": "39",
+    "conceptId": "15.4",
+    "conceptTitle": "15.4 Aggregate Window Functions & Default Framing (Slot 1 of 2)",
+    "category": "Window Functions",
+    "prompt": "Retaining every individual expense row (do not collapse rows into groups), display `expense_id`, `category`, `cost`, `category_total` (total cost for that row's category), `overall_total` (grand total cost across all rows), and `pct_of_overall` (that expense's percentage share of the overall total, rounded to 2 decimal places).",
+    "schema": "`expenses (expense_id NUMBER, category VARCHAR2(20), cost NUMBER)`",
+    "solution": "SELECT expense_id,\n         category,\n         cost,\n         SUM(cost) OVER (PARTITION BY category) AS category_total,\n         SUM(cost) OVER () AS overall_total,\n         ROUND((cost / SUM(cost) OVER ()) * 100, 2) AS pct_of_overall\n  FROM expenses;",
+    "trap": "Adding `ORDER BY` inside `SUM(...) OVER (...)` turns it into a cumulative running sum instead of a full partition/grand total!"
+  },
+  {
+    "slot": "40",
+    "conceptId": "15.4",
+    "conceptTitle": "15.4 Aggregate Window Functions & Default Framing (Slot 2 of 2)",
+    "category": "Window Functions",
+    "prompt": "Retaining every ledger transaction row (do not collapse rows), return `account_id`, `txn_date`, `txn_id`, `amount`, and `running_balance` (the cumulative balance for that `account_id` up through each transaction ordered chronologically by `txn_date`, breaking same-date ties by `txn_id`). Sort output by `account_id`, `txn_date`, `txn_id`.",
+    "schema": "`bank_ledger (txn_id NUMBER, account_id NUMBER, txn_date DATE, amount NUMBER)`",
+    "solution": "SELECT account_id,\n         txn_date,\n         txn_id,\n         amount,\n         SUM(amount) OVER (PARTITION BY account_id ORDER BY txn_date, txn_id) AS running_balance\n  FROM bank_ledger\n  ORDER BY account_id, txn_date, txn_id;",
+    "trap": "Omitting `ORDER BY` inside `OVER (...)` gives the full account total on every row instead of a cumulative running balance; omitting `PARTITION BY account_id` mixes balances across accounts."
+  },
+  {
+    "slot": "41",
+    "conceptId": "7.8",
+    "conceptTitle": "7.8 Conditional `CASE` Expressions",
+    "category": "Functions & Dates",
+    "prompt": "Produce a department-level summary returning:\n  - `dept`\n  - `total_staff`: total headcount in the department\n  - `top_performers`: count of employees with a rating of `4.5` or higher (must display `0` if none qualify)\n  - `mid_band_avg_sal`: average salary considering only employees earning between `50000` and `90000` inclusive, rounded to 2 decimal places (excluded employees must not pull the average down toward zero)\n  - `dept_tier`: `'HIGH COST'` if the department's overall average salary is at least `85000`, otherwise `'STANDARD'`\n  Sort from most top performers to fewest, breaking ties alphabetically by department.",
+    "schema": "`employee_reviews (emp_id NUMBER, emp_name VARCHAR2(40), dept VARCHAR2(20), salary NUMBER, rating NUMBER)`",
+    "solution": "SELECT dept,\n         COUNT(*) AS total_staff,\n         SUM(CASE WHEN rating >= 4.5 THEN 1 ELSE 0 END) AS top_performers,\n         ROUND(AVG(CASE WHEN salary BETWEEN 50000 AND 90000 THEN salary END), 2) AS mid_band_avg_sal,\n         CASE\n             WHEN AVG(salary) >= 85000 THEN 'HIGH COST'\n             ELSE 'STANDARD'\n         END AS dept_tier\n  FROM employee_reviews\n  GROUP BY dept\n  ORDER BY top_performers DESC, dept ASC;",
+    "trap": "Using `COUNT(CASE WHEN rating >= 4.5 THEN 1 ELSE 0 END)` counts EVERY row because `COUNT` counts `0`! Must use `SUM(... THEN 1 ELSE 0 END)` or `COUNT(... THEN 1 END)`. Inside `AVG(CASE ...)`, omitting `ELSE` returns `NULL` so `AVG` ignores non-matching rows instead of averaging `0`. All `THEN`/`ELSE` branches must match datatypes and end with `END`."
+  }
+]
