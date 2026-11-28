@@ -52,15 +52,21 @@
   - Difference calculations between consecutive records.
 
 ## 4. Aggregate Window Functions & Framing (Grand vs. Running Totals)
-- **Concept**: Turning standard aggregates (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`) into analytic window functions using `OVER (...)`.
+- **Concept**: Turning standard aggregates (`SUM`, `AVG`, `COUNT`, `MIN`, `MAX`) into analytic window functions using `OVER (...)` (they are not limited to ranking functions).
 - **Default Framing Rules**:
   - **`OVER ()` (No ORDER BY clause)**:
     - Default Window Frame: `RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`.
-    - Computes the **Grand Total** across the entire table or partition.
+    - Computes the **Grand Total** across the entire table.
     - Every row shows its individual value alongside the identical overall sum.
+  - **`OVER (PARTITION BY ...)` (Group Total Without Collapsing Rows)**:
+    - Computes the aggregate per partition/group (e.g., `SUM(salary) OVER (PARTITION BY dept_id)`), keeping every individual row.
   - **`OVER (ORDER BY ...)`**:
     - Default Window Frame: `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`.
-    - Automatically computes a **Cumulative Running Total** from the first row up to the current row.
+    - Automatically computes a **Cumulative Running Total** from the first row up to the current row (or per partition with `OVER (PARTITION BY ... ORDER BY ...)`).
+- **Combining with Math & Single-Row Functions (`ROUND`, `% Share`)**:
+  - Window functions can be used directly inside arithmetic and scalar functions like `ROUND((amount / SUM(amount) OVER (PARTITION BY dept_id)) * 100, 2)`.
+  - **Sibling Alias Rule**: You cannot reference a column alias defined in the same `SELECT` list inside another `SELECT` expression (repeat the `OVER (...)` expression instead).
 - **Example Comparison (Row 2 of salaries 1000, 2000, 3000)**:
   - `SUM(salary) OVER ()` → `6000` (Grand total).
+  - `SUM(salary) OVER (PARTITION BY dept_id)` → Department total for that row's `dept_id`.
   - `SUM(salary) OVER (ORDER BY salary)` → `3000` (Running total: 1000 + 2000).
