@@ -37,7 +37,7 @@
     "conceptId": "4.3",
     "conceptTitle": "4.3 Substring Extraction (`SUBSTR`)",
     "category": "Functions & Dates",
-    "prompt": "Given customer accounts, return `account_id`, `area_code` (the 3-character area code starting at character position 2 in `phone_number`, e.g., `'415'` from `'(415)555-0199'`), and `last_four` (the final 4 characters of `account_number` using negative indexing).",
+    "prompt": "Given customer accounts, return `account_id`, `area_code` (the 3-character area code inside the parentheses of `phone_number`, e.g., `'415'` from `'(415)555-0199'`), and `last_four` (the final 4 characters of `account_number`).",
     "schema": "`customer_accounts (account_id NUMBER, phone_number VARCHAR2(20), account_number VARCHAR2(30))`",
     "solution": "SELECT account_id,\n         SUBSTR(phone_number, 2, 3) AS area_code,\n         SUBSTR(account_number, -4) AS last_four\n  FROM customer_accounts;",
     "trap": "`SUBSTR` index is 1-based (`position 2` skips the opening parenthesis); negative `start_position` (`-4`) counts from the end, and omitting length slices through to the end.",
