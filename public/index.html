@@ -1395,7 +1395,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795852625860"></script>
+  <script src="topics-data.js?v=1795852982367"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1471,7 +1471,7 @@
         }
 
         const btn = document.createElement('button');
-        const isActive = !window.isHardRevisionActive && idx === currentTopicIndex;
+        const isActive = !window.isHardRevisionActive && !window.isPracticalsActive && idx === currentTopicIndex;
         btn.className = `w-full text-left px-2.5 py-2 rounded-lg text-xs font-medium transition flex items-center justify-between gap-2 ${
           isActive 
             ? 'bg-zinc-900 text-white font-semibold border-l-2 border-emerald-400 pl-3' 
@@ -4028,13 +4028,6 @@
     })();
 
     
-    let currentPracticalCategory = 'All';
-    let practicalSearchQuery = '';
-
-    window.setPracticalCategory = function(cat) {
-      currentPracticalCategory = cat;
-      renderPracticalsContent();
-    };
 
     window.copyCode = function(slot, ev) {
       const practicals = window.STAGE_GATE_PRACTICALS || [];
@@ -4083,44 +4076,8 @@
 
     function renderPracticalsContent() {
       const practicals = window.STAGE_GATE_PRACTICALS || [];
-      const categories = ['All', 'WHERE Clause', 'Functions & Dates', 'Aggregation', 'Joins', 'Subqueries', 'Set Operators', 'DML & MERGE', 'DDL & Views', 'Window Functions'];
 
-      let filtered = practicals;
-      if (currentPracticalCategory !== 'All') {
-        filtered = filtered.filter(p => p.category === currentPracticalCategory);
-      }
-      if (practicalSearchQuery) {
-        const q = practicalSearchQuery.toLowerCase();
-        filtered = filtered.filter(p => 
-          (p.slot && p.slot.toLowerCase().includes(q)) ||
-          (p.conceptId && p.conceptId.toLowerCase().includes(q)) ||
-          (p.conceptTitle && p.conceptTitle.toLowerCase().includes(q)) ||
-          (p.prompt && p.prompt.toLowerCase().includes(q)) ||
-          (p.schema && p.schema.toLowerCase().includes(q)) ||
-          (p.solution && p.solution.toLowerCase().includes(q)) ||
-          (p.trap && p.trap.toLowerCase().includes(q))
-        );
-      }
-
-      const pillsHtml = categories.map(cat => {
-        const count = cat === 'All' ? practicals.length : practicals.filter(p => p.category === cat).length;
-        const isActive = cat === currentPracticalCategory;
-        return `
-          <button 
-            type="button" 
-            onclick="setPracticalCategory('${cat}')" 
-            class="px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer shrink-0 ${isActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'}"
-          >
-            ${cat} (${count})
-          </button>
-        `;
-      }).join('');
-
-      const cardsHtml = filtered.length === 0 ? `
-        <div class="py-12 text-center text-zinc-500 text-sm bg-zinc-900/30 rounded-xl border border-zinc-800">
-          No practical questions match your search or filter.
-        </div>
-      ` : filtered.map(p => {
+      const cardsHtml = practicals.map(p => {
         const safePrompt = marked ? marked.parse(p.prompt) : p.prompt;
         const safeTrap = marked ? marked.parse(p.trap) : p.trap;
         const escapedSolution = (p.solution || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4180,49 +4137,10 @@
       }).join('');
 
       contentContainer.innerHTML = `
-        <div class="max-w-4xl mx-auto space-y-5 pb-16 pt-1">
-          
-          <!-- Sticky Search & Category Bar (No large banner) -->
-          <div class="space-y-2.5 sticky top-14 z-30 bg-black/95 backdrop-blur-md py-2 border-b border-zinc-800">
-            <div class="relative w-full">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input 
-                id="practicalsSearchInput" 
-                type="text" 
-                value="${practicalSearchQuery}" 
-                placeholder="Search 41 practical questions..." 
-                class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition"
-              >
-            </div>
-
-            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              ${pillsHtml}
-            </div>
-          </div>
-
-          <!-- Normal Questions & Solutions List -->
-          <div class="space-y-4">
-            ${cardsHtml}
-          </div>
-
+        <div class="max-w-4xl mx-auto space-y-4 pb-16 pt-1">
+          ${cardsHtml}
         </div>
       `;
-
-      const sInput = document.getElementById('practicalsSearchInput');
-      if (sInput) {
-        sInput.addEventListener('input', (e) => {
-          practicalSearchQuery = e.target.value.trim();
-          renderPracticalsContent();
-          const nextInput = document.getElementById('practicalsSearchInput');
-          if (nextInput) {
-            nextInput.focus();
-            nextInput.selectionStart = nextInput.selectionEnd = nextInput.value.length;
-          }
-        });
-      }
 
       if (window.hljs) {
         contentContainer.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
@@ -4232,7 +4150,7 @@
       }
     }
 
-    const headerPracticalsBtn = document.getElementById('headerPracticalsBtn');
+        const headerPracticalsBtn = document.getElementById('headerPracticalsBtn');
     const sidebarPracticalsBtn = document.getElementById('sidebarPracticalsBtn');
 
     if (headerPracticalsBtn) {
