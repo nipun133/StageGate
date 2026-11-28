@@ -682,6 +682,23 @@
           </div>
           <span id="sidebarRevisionCount" class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold shrink-0">0</span>
         </button>
+        <button id="sidebarPracticalsBtn" type="button" class="w-full text-left px-3 py-2.5 mt-2 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 bg-gradient-to-r from-amber-950/40 via-zinc-900 to-zinc-900/60 border border-amber-500/30 text-white hover:border-amber-400 group cursor-pointer shadow-md">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30 group-hover:scale-105 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+            </div>
+            <div class="truncate">
+              <div class="font-bold text-white text-xs tracking-tight flex items-center gap-1.5">
+                <span>Practical Questions</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              </div>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold shrink-0">41 Qs</span>
+        </button>
       </div>
 
       <div class="p-3 flex-1 overflow-y-auto space-y-1" id="topicsNav">
@@ -1378,7 +1395,7 @@
   </script>
 
   <!-- Load Data and App Script with Cache-Buster -->
-  <script src="topics-data.js?v=1795851905776"></script>
+  <script src="topics-data.js?v=1795852625860"></script>
   <script>
     let currentTopicIndex = 0;
     const topics = window.STAGE_GATE_DATA || [];
@@ -1804,6 +1821,17 @@
           });
         });
         navigator.clipboard.writeText(text);
+      } else if (window.isPracticalsActive) {
+        const practicals = window.STAGE_GATE_PRACTICALS || [];
+        let text = '# Stage Gate - 41 Practical Questions & Solutions\n\n';
+        practicals.forEach(p => {
+          text += `## Question ${p.slot} (${p.category} - Concept ${p.conceptId})\n\n`;
+          text += `### Task\n${p.prompt}\n\n`;
+          if (p.schema) text += `### Schema\n\`\`\`text\n${p.schema}\n\`\`\`\n\n`;
+          text += `### Oracle SQL Solution\n\`\`\`sql\n${p.solution}\n\`\`\`\n\n`;
+          text += `### Explanation & Trap\n${p.trap}\n\n---\n\n`;
+        });
+        navigator.clipboard.writeText(text);
       } else {
         const topic = topics[currentTopicIndex];
         navigator.clipboard.writeText(topic.content);
@@ -1811,7 +1839,8 @@
       copyAllBtn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-emerald-400 hidden sm:inline">Copied!</span>';
       lucide.createIcons();
       setTimeout(() => {
-        copyAllBtn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">' + (window.isHardRevisionActive ? 'Copy Revision' : 'Copy Notes') + '</span>';
+        const copyLabel = window.isHardRevisionActive ? 'Copy Revision' : (window.isPracticalsActive ? 'Copy All' : 'Copy Notes');
+        copyAllBtn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">' + copyLabel + '</span>';
         lucide.createIcons();
       }, 2000);
     };
@@ -3877,6 +3906,9 @@
       if (hash === 'hard-revision') {
         loadHardRevision(true);
         restored = true;
+      } else if (hash === 'practicals') {
+        loadPracticalsView();
+        restored = true;
       } else if (hash) {
         const foundIdx = topics.findIndex(t => t.id === hash || ('topic-' + t.id) === hash);
         if (foundIdx !== -1) {
@@ -3889,6 +3921,9 @@
         const savedView = localStorage.getItem('stage_gate_active_view');
         if (savedView === 'hard-revision') {
           loadHardRevision(true);
+          restored = true;
+        } else if (savedView === 'practicals') {
+          loadPracticalsView();
           restored = true;
         } else if (savedView !== null) {
           const idx = parseInt(savedView, 10);
@@ -4033,8 +4068,8 @@
       } catch (e) {}
 
       topicBadge.classList.remove('hidden');
-      topicBadge.textContent = 'Oracle SQL Coding';
-      currentTopicTitle.textContent = '41 Practical Drills & Reference Solutions';
+      topicBadge.textContent = 'PRACTICAL QUESTIONS';
+      currentTopicTitle.textContent = 'Practical Questions & Solutions';
 
       if (downloadRevisionBtn) {
         downloadRevisionBtn.classList.add('hidden');
@@ -4082,8 +4117,8 @@
       }).join('');
 
       const cardsHtml = filtered.length === 0 ? `
-        <div class="py-12 text-center text-zinc-500 text-sm bg-zinc-900/30 rounded-2xl border border-zinc-800">
-          No practical drills match your search or filter.
+        <div class="py-12 text-center text-zinc-500 text-sm bg-zinc-900/30 rounded-xl border border-zinc-800">
+          No practical questions match your search or filter.
         </div>
       ` : filtered.map(p => {
         const safePrompt = marked ? marked.parse(p.prompt) : p.prompt;
@@ -4092,19 +4127,14 @@
         const cleanSchema = (p.schema || '').replace(/`/g, '');
 
         return `
-          <div class="rounded-2xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-5 transition hover:border-zinc-700/80 shadow-md space-y-4" id="drill-card-${p.slot}">
+          <div class="rounded-xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-5 shadow space-y-3.5" id="drill-card-${p.slot}">
             
-            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/70 pb-3">
+            <!-- Header: Question Number & Concept Badge -->
+            <div class="flex items-center justify-between gap-2 border-b border-zinc-800/70 pb-2.5">
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono text-xs font-bold">
-                  Slot ${p.slot}
-                </span>
-                <span class="px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-xs">
-                  ${p.category}
-                </span>
-                <span class="text-xs font-medium text-zinc-400 font-mono">
-                  Concept ${p.conceptId}
-                </span>
+                <span class="font-bold text-sm text-white">Question ${p.slot}</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 font-mono">Concept ${p.conceptId}</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">${p.category}</span>
               </div>
 
               <button 
@@ -4120,48 +4150,29 @@
               </button>
             </div>
 
+            <!-- Question Task -->
             <div>
-              <div class="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-1">Business Requirement & Task</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Question</div>
               <div class="text-sm text-zinc-200 leading-relaxed font-normal prose prose-invert max-w-none">${safePrompt}</div>
             </div>
 
-            <div class="bg-zinc-900/60 rounded-xl p-3 border border-zinc-800/60">
-              <div class="text-[11px] uppercase tracking-wider font-semibold text-zinc-500 mb-1.5 flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                </svg>
-                <span>Table Schema</span>
-              </div>
-              <div class="text-xs font-mono text-emerald-400/90 whitespace-pre-wrap break-all">${cleanSchema}</div>
+            <!-- Schema -->
+            <div class="bg-zinc-900/50 rounded-lg p-2.5 border border-zinc-800/60 text-xs font-mono text-emerald-400/90 whitespace-pre-wrap break-all">
+              <span class="text-zinc-500 font-sans font-semibold mr-1.5 uppercase text-[10px]">Schema:</span>${cleanSchema}
             </div>
 
+            <!-- Solution -->
             <div>
-              <div class="text-[11px] uppercase tracking-wider font-semibold text-amber-400/90 mb-1.5 flex items-center justify-between">
-                <span class="flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="16 18 22 12 16 6"/>
-                    <polyline points="8 6 2 12 8 18"/>
-                  </svg>
-                  <span>Reference Oracle SQL Solution</span>
-                </span>
-              </div>
-              <div class="relative group rounded-xl overflow-hidden border border-zinc-800">
-                <pre class="p-3.5 bg-[#0d1117] text-xs font-mono overflow-x-auto text-zinc-100"><code class="language-sql">${escapedSolution}</code></pre>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90 mb-1">Oracle SQL Solution</div>
+              <div class="rounded-lg overflow-hidden border border-zinc-800 bg-[#0d1117]">
+                <pre class="p-3 text-xs font-mono overflow-x-auto text-zinc-100"><code class="language-sql">${escapedSolution}</code></pre>
               </div>
             </div>
 
-            <div class="rounded-xl bg-amber-500/5 border border-amber-500/20 p-3.5 text-xs text-amber-200/90 leading-relaxed">
-              <div class="font-bold text-amber-400 text-xs flex items-center gap-1.5 mb-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                <span>Exam Trap & Solution Breakdown</span>
-              </div>
-              <div class="prose prose-invert max-w-none text-xs text-amber-200/90 leading-relaxed">${safeTrap}</div>
+            <!-- Explanation & Trap -->
+            <div class="rounded-lg bg-zinc-900/50 border border-zinc-800 p-3 text-xs text-zinc-300 leading-relaxed">
+              <div class="font-semibold text-amber-400/90 text-xs mb-1">Explanation & Exam Trap:</div>
+              <div class="prose prose-invert max-w-none text-xs text-zinc-300 leading-relaxed">${safeTrap}</div>
             </div>
 
           </div>
@@ -4169,23 +4180,10 @@
       }).join('');
 
       contentContainer.innerHTML = `
-        <div class="max-w-4xl mx-auto space-y-6 pb-16">
+        <div class="max-w-4xl mx-auto space-y-5 pb-16 pt-1">
           
-          <div class="rounded-2xl bg-gradient-to-r from-amber-950/30 via-zinc-900/70 to-zinc-950 border border-amber-500/30 p-5 sm:p-6 shadow-xl space-y-2">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-base border border-amber-500/40">
-                ⚡
-              </div>
-              <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight m-0 border-0 p-0">
-                41 SQL Practical Coding Drills & Reference Solutions
-              </h1>
-            </div>
-            <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed m-0">
-              Master the exact patterns tested in Deloitte Stage Gate's 2–3 big coding questions. Study every business scenario, schema relationship, Oracle-specific formula, and trap check at your own pace.
-            </p>
-          </div>
-
-          <div class="space-y-3 sticky top-14 z-30 bg-black/95 backdrop-blur-md py-2 border-b border-zinc-800">
+          <!-- Sticky Search & Category Bar (No large banner) -->
+          <div class="space-y-2.5 sticky top-14 z-30 bg-black/95 backdrop-blur-md py-2 border-b border-zinc-800">
             <div class="relative w-full">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/>
@@ -4195,8 +4193,8 @@
                 id="practicalsSearchInput" 
                 type="text" 
                 value="${practicalSearchQuery}" 
-                placeholder="Search drills by keyword (e.g., 'anti-join', 'PARTITION BY', 'MERGE', 'DENSE_RANK')..." 
-                class="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition shadow-inner"
+                placeholder="Search 41 practical questions..." 
+                class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition"
               >
             </div>
 
@@ -4205,7 +4203,8 @@
             </div>
           </div>
 
-          <div class="space-y-5">
+          <!-- Normal Questions & Solutions List -->
+          <div class="space-y-4">
             ${cardsHtml}
           </div>
 
@@ -4252,9 +4251,11 @@
       const hash = (location.hash || '').replace(/^#/, '').trim();
       if (hash === 'hard-revision') {
         if (!window.isHardRevisionActive) loadHardRevision(true);
+      } else if (hash === 'practicals') {
+        if (!window.isPracticalsActive) loadPracticalsView();
       } else if (hash) {
         const foundIdx = topics.findIndex(t => t.id === hash);
-        if (foundIdx !== -1 && (window.isHardRevisionActive || currentTopicIndex !== foundIdx)) {
+        if (foundIdx !== -1 && (window.isHardRevisionActive || window.isPracticalsActive || currentTopicIndex !== foundIdx)) {
           loadTopic(foundIdx);
         }
       }
