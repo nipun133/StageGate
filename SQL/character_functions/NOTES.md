@@ -20,6 +20,10 @@
 - **Negative Index**: Counts backwards from the end of the string (`-1` is the last character).
 - **Start Position 0**: Oracle treats a start position of `0` as `1` (e.g., `SUBSTR('Oracle', 0, 3)` returns `'Ora'`).
 - Character case is preserved from the original string.
+- **Dynamic Delimiter Extraction (`SUBSTR` + `INSTR`)**:
+  - To extract text *after* a delimiter (like `'@'` or `'-'`), use `INSTR` to find the delimiter and add `+ 1` so the delimiter itself is excluded:
+    `SUBSTR(email, INSTR(email, '@') + 1)`
+  - Omission of the `length` parameter automatically grabs everything to the end of the string.
 - Example: `SUBSTR('Database', -3, 2)` starts 3 characters from the end ('a') and takes 2 characters → `'as'`.
 
 ## 4. Finding String Positions (INSTR)
