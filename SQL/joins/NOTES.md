@@ -24,9 +24,11 @@
 ## 4. The JOIN ... ON Syntax (Inner Join)
 - **Syntax**: `SELECT e.col, d.col FROM table1 e JOIN table2 d ON e.id = d.id;`
 - Most flexible join; works with different column names and complex conditions.
+- **Chaining 3+ Tables**: Add sequential `JOIN ... ON` clauses one after another (`FROM t1 a JOIN t2 b ON a.k1 = b.k1 JOIN t3 c ON b.k2 = c.k2`).
 - **Disambiguation Rule**: In `JOIN ... ON`, any shared column referenced in `SELECT` **must be qualified** with a table alias (e.g., `c.customer_id`).
 - Omitting the table qualifier on a shared column raises: `column ambiguously defined`.
-- Example: `SELECT c.customer_name, c.customer_id, o.order_total FROM customers c JOIN orders o ON c.customer_id = o.customer_id;`
+- Example (2 tables): `SELECT c.customer_name, c.customer_id, o.order_total FROM customers c JOIN orders o ON c.customer_id = o.customer_id;`
+- Example (3 tables): `SELECT c.customer_name, o.order_id, oi.qty FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id;`
 
 ## 5. Self Joins
 - **Syntax**: `SELECT e.col, m.col FROM table e JOIN table m ON e.parent_id = m.id;`
